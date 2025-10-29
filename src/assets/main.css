@@ -1,3 +1,24 @@
+/* Quincy Font Setup */
+/* 
+  To use the Quincy font, place your Quincy font files (TTF/OTF/WOFF2) in src/assets/fonts/ 
+  and uncomment the @font-face declarations below:
+
+  @font-face {
+    font-family: 'Quincy';
+    src: url('./fonts/Quincy-Regular.woff2') format('woff2'),
+         url('./fonts/Quincy-Regular.woff') format('woff');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+  }
+  
+  Add additional @font-face rules for other weights (300, 500, 600, 700) as needed.
+*/
+
+/* Google Fonts alternatives (uncomment if using instead of Quincy) */
+/* @import url('https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@300;400;500;600;700&display=swap'); */
+/* @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600;700&display=swap'); */
+
 * {
   box-sizing: border-box;
   margin: 0;
@@ -10,6 +31,16 @@ body {
   -moz-osx-font-smoothing: grayscale;
   background-color: #f5f7fa;
   color: #2c3e50;
+}
+
+/* Quincy font utility class for selective use */
+.font-quincy {
+  font-family: 'Quincy', 'Crimson Pro', 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+}
+
+/* Apply Quincy to headers */
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Quincy', 'Crimson Pro', 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
 }
 
 button {

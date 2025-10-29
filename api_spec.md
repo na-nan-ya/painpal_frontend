@@ -216,7 +216,7 @@
 
 ---
 
-# API Specification: BreakThroughTracking Concept
+# API Specification: BreakThroughTracking 
 
 **Purpose:** record, edit, and summarise occurrences of breakthrough pain events
 

@@ -166,6 +166,12 @@ export default {
         'body-region': true,
         'selected': this.selectedRegions.includes(regionId)
       }
+    },
+    handleHover(regionName, event) {
+      this.$emit('region-hover', { regionName, mouseEvent: event })
+    },
+    handleLeave() {
+      this.$emit('region-leave')
     }
   }
 }
