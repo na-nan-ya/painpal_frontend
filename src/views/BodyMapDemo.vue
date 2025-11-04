@@ -479,26 +479,15 @@ export default {
       const maps = []
       const today = new Date()
       
-      // Generate maps for the past 30 days with varied patterns
-      for (let i = 0; i < 30; i++) {
-        const date = new Date(today)
-        date.setDate(today.getDate() - i)
-        
-        const regions = this.getRandomRegions(i)
-        
-        maps.push({
-          _id: `map-${date.toISOString().split('T')[0]}`,
-          ownerId: 'user123',
-          creationDate: date.toISOString(),
-          imageUrl: 'default_map_image.png',
-          isSaved: i > 0,
-          regions: i === 0 ? 
-            // Today's map - start with no scores, let user score manually
-            regions.map(name => ({ name, score: null })) :
-            // Historical maps - use random scores for demo
-            regions.map(name => ({ name, score: Math.floor(Math.random() * 8) + 3 }))
-        })
-      }
+      // Only create today's map - no fake historical data
+      maps.push({
+        _id: `map-${today.toISOString().split('T')[0]}`,
+        ownerId: 'user123',
+        creationDate: today.toISOString(),
+        imageUrl: 'default_map_image.png',
+        isSaved: false,
+        regions: [] // Start with empty regions, let user add them
+      })
       
       return maps
     },

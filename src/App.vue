@@ -31,8 +31,7 @@
     <!-- Collapsible Menu -->
     <div class="nav-menu" :class="{ 'active': isMenuOpen }">
       <div class="menu-header">
-        <h3>📅 Pain History</h3>
-        <button class="close-menu-btn" @click="closeMenu">×</button>
+        <h3>Saved Maps</h3>
       </div>
       
       <div class="calendar-container">
@@ -56,7 +55,7 @@
             />
             <button @click="goToToday" class="today-btn">Today</button>
           </div>
-          <p class="search-hint">📅 Jump to any date to view your pain map</p>
+          <p class="search-hint">Jump to any date to view your pain map</p>
           <!-- Search Status Message -->
           <div v-if="searchMessage" class="search-message" :class="{ 'error': searchMessage.includes('⚠️') }">
             {{ searchMessage }}
@@ -632,11 +631,12 @@ header {
   padding: 1rem 1.5rem;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   margin-bottom: 1rem;
+  text-align: center;
 }
 
 .menu-header h3 {
   color: white;
-  margin: 0 0 1rem 0;
+  margin: 0;
   font-size: 1.1rem;
 }
 
@@ -974,10 +974,11 @@ header {
 
 .menu-header {
   display: flex;
-  justify-content: space-between;
+  justify-content: center;
   align-items: center;
   padding: 20px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  text-align: center;
 }
 
 .menu-header h3 {

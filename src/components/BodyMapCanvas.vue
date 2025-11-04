@@ -50,7 +50,6 @@
 
       <!-- Zoom Controls -->
       <div class="zoom-controls">
-        <h4>Zoom Controls</h4>
         <div class="zoom-buttons">
           <button @click="zoomIn" class="zoom-btn" title="Zoom In">+</button>
           <span class="zoom-level">{{ Math.round(zoomLevel * 100) }}%</span>
@@ -127,7 +126,7 @@
       <div v-if="showScoreDialog" class="dialog-overlay" @click.self="closeDialog">
         <div class="dialog-card" @click.stop>
           <div class="dialog-header">
-            <h3>Rate Pain Intensity</h3>
+            <h3>Score Pain Intensity</h3>
             <button @click="closeDialog" class="close-btn">×</button>
           </div>
           
@@ -174,23 +173,6 @@
                   {{ tempScore }}
                 </div>
                 <div class="score-description">{{ getScoreDescription(tempScore) }}</div>
-              </div>
-              
-              <div class="score-input-group">
-                <input 
-                  type="number" 
-                  v-model.number="tempScore" 
-                  min="1" 
-                  max="10" 
-                  class="score-number-input"
-                  @blur="validateScore"
-                  @mousedown.stop
-                  @mouseup.stop
-                  @click.stop
-                  @change.stop="handleNumberChange"
-                  @input.stop="handleNumberInput"
-                />
-                <span class="input-label">Manual entry</span>
               </div>
             </div>
           </div>
@@ -469,7 +451,6 @@ export default {
     preventDialogClose(event) {
       // Only prevent if clicking on dialog elements
       if (event.target.closest('.score-slider-container') || 
-          event.target.closest('.score-input-group') ||
           event.target.closest('.score-display')) {
         event.stopPropagation()
       }
@@ -967,6 +948,7 @@ export default {
   border-radius: 4px;
   outline: none;
   -webkit-appearance: none;
+  appearance: none;
   background: linear-gradient(90deg, #3A9DCA 0%, #2074A2 100%);
   margin-bottom: 1rem;
 }
@@ -1144,86 +1126,140 @@ export default {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.6);
+  background: rgba(0, 0, 0, 0.4);
   backdrop-filter: blur(4px);
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
+  padding-top: 10px;
   z-index: 1000;
+  overflow-y: auto;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.dialog-overlay::-webkit-scrollbar {
+  display: none;
 }
 
 .dialog-card {
-  background: rgba(255, 255, 255, 0.95);
+  background: rgba(255, 255, 255, 0.98);
   backdrop-filter: blur(20px);
-  border: 2px solid rgba(146, 171, 252, 0.5);
-  border-radius: 20px;
-  box-shadow: 0 25px 70px rgba(45, 27, 57, 0.25);
+  border: 1px solid rgba(144, 171, 252, 0.3);
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(45, 27, 57, 0.15);
   width: 90%;
-  max-width: 480px;
-  overflow: hidden;
+  max-width: 420px;
+  max-height: calc(100vh - 120px);
+  overflow-y: auto;
+  margin: 0 auto;
+}
+
+.dialog-card::-webkit-scrollbar {
+  width: 6px;
+}
+
+.dialog-card::-webkit-scrollbar-track {
+  background: rgba(239, 238, 240, 0.5);
+  border-radius: 3px;
+}
+
+.dialog-card::-webkit-scrollbar-thumb {
+  background: rgba(144, 171, 252, 0.4);
+  border-radius: 3px;
+}
+
+.dialog-card::-webkit-scrollbar-thumb:hover {
+  background: rgba(144, 171, 252, 0.6);
 }
 
 .dialog-header {
   background: linear-gradient(135deg, 
-    rgba(58, 157, 202, 0.8) 0%, 
-    rgba(32, 116, 162, 0.85) 100%);
+    rgba(45, 27, 57, 0.85) 0%, 
+    rgba(3, 70, 130, 0.8) 50%, 
+    rgba(86, 71, 221, 0.75) 100%);
   backdrop-filter: blur(10px);
-  color: white;
-  padding: 1.5rem 2rem;
+  color: white !important;
+  padding: 1rem 1.5rem;
   display: flex;
-  justify-content: space-between;
+  justify-content: center;
   align-items: center;
+  border-radius: 16px 16px 0 0;
+  position: relative;
+  min-height: 60px;
 }
 
 .dialog-header h3 {
   margin: 0;
-  font-size: 1.5rem;
+  font-size: 1.1rem;
   font-weight: 600;
+  text-align: center;
+  color: white !important;
+  font-family: 'Quincy', 'Crimson Pro', 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+  letter-spacing: 0.5px;
+  position: absolute;
+  left: 50%;
+  top: 55%;
+  transform: translate(-50%, -50%);
+  width: calc(100% - 60px);
+  z-index: 1;
 }
 
 .close-btn {
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.15);
   border: none;
-  color: white;
-  font-size: 2rem;
-  width: 40px;
-  height: 40px;
+  color: white !important;
+  font-size: 1.5rem;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background 0.2s;
+  transition: all 0.2s;
   line-height: 1;
   padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Helvetica Neue', sans-serif;
+  position: absolute;
+  right: 1.25rem;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 10;
 }
 
 .close-btn:hover {
-  background: rgba(255, 255, 255, 0.3);
+  background: white;
+  color: black !important;
+  transform: translateY(-50%);
 }
 
 .dialog-body {
-  padding: 2rem;
+  padding: 1rem 1.25rem;
 }
 
 .region-name {
-  font-size: 1.25rem;
+  font-size: 1rem;
   font-weight: 600;
-  color: #1e293b;
-  margin: 0 0 2rem 0;
+  color: #2c3e50;
+  margin: 0 0 0.75rem 0;
   text-align: center;
+  font-family: 'Quincy', 'Crimson Pro', 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+  letter-spacing: 0.3px;
 }
 
 .score-input-section label {
   display: block;
-  font-weight: 600;
-  color: #475569;
-  margin-bottom: 1rem;
-  font-size: 0.95rem;
+  font-weight: 500;
+  color: #2c3e50;
+  margin-bottom: 0.5rem;
+  font-size: 0.85rem;
+  text-align: center;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Helvetica Neue', sans-serif;
 }
 
 .score-slider-container {
-  margin-bottom: 2rem;
+  margin-bottom: 0.75rem;
 }
 
 .score-slider {
@@ -1232,6 +1268,7 @@ export default {
   border-radius: 4px;
   outline: none;
   -webkit-appearance: none;
+  appearance: none;
   background: linear-gradient(
     to right,
     #10b981 0%,
@@ -1285,30 +1322,33 @@ export default {
   color: #64748b;
   font-size: 0.875rem;
   font-weight: 500;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Helvetica Neue', sans-serif;
 }
 
 .score-display {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.75rem;
-  margin-bottom: 2rem;
-  padding: 1.5rem;
-  background: #f8fafc;
-  border-radius: 16px;
+  gap: 0.4rem;
+  margin-bottom: 0.75rem;
+  padding: 0.75rem;
+  background: rgba(239, 238, 240, 0.4);
+  border-radius: 10px;
+  border: 1px solid rgba(144, 171, 252, 0.2);
 }
 
 .score-value {
-  font-size: 3.5rem;
+  font-size: 2rem;
   font-weight: 700;
   line-height: 1;
   color: white;
-  min-width: 80px;
+  min-width: 60px;
   text-align: center;
-  padding: 0.5rem 1rem;
-  border-radius: 16px;
-  background: rgba(45, 27, 57, 0.9);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  padding: 0.3rem 0.6rem;
+  border-radius: 10px;
+  background: rgba(45, 27, 57, 0.85);
+  box-shadow: 0 2px 8px rgba(45, 27, 57, 0.15);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Helvetica Neue', sans-serif;
 }
 
 .score-value.score-low {
@@ -1324,47 +1364,22 @@ export default {
 }
 
 .score-description {
-  font-size: 1.1rem;
-  font-weight: 600;
-  color: #475569;
-}
-
-.score-input-group {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  padding: 1rem;
-  background: #f8fafc;
-  border-radius: 12px;
-}
-
-.score-number-input {
-  width: 80px;
-  padding: 0.75rem;
-  font-size: 1.25rem;
-  font-weight: 600;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #2c3e50;
   text-align: center;
-  border: 2px solid #cbd5e1;
-  border-radius: 12px;
-  outline: none;
-  transition: border-color 0.2s;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Helvetica Neue', sans-serif;
 }
 
-.score-number-input:focus {
-  border-color: #3A9DCA;
-}
-
-.input-label {
-  color: #64748b;
-  font-size: 0.95rem;
-}
 
 .dialog-footer {
-  padding: 1.5rem 2rem;
-  background: #f8fafc;
+  padding: 0.75rem 1.25rem;
+  background: rgba(239, 238, 240, 0.3);
   display: flex;
-  gap: 1rem;
+  gap: 0.5rem;
   align-items: center;
+  border-top: 1px solid rgba(144, 171, 252, 0.2);
+  border-radius: 0 0 16px 16px;
 }
 
 .spacer {
@@ -1374,44 +1389,46 @@ export default {
 .cancel-btn,
 .save-btn,
 .delete-btn {
-  padding: 0.75rem 1.5rem;
+  padding: 0.5rem 1rem;
   border: none;
-  border-radius: 12px;
-  font-weight: 600;
+  border-radius: 8px;
+  font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
-  font-size: 1rem;
+  font-size: 0.85rem;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Helvetica Neue', sans-serif;
 }
 
 .cancel-btn {
-  background: white;
+  background: rgba(255, 255, 255, 0.9);
   color: #64748b;
-  border: 2px solid #e2e8f0;
+  border: 1px solid rgba(144, 171, 252, 0.3);
 }
 
 .cancel-btn:hover {
-  background: #f8fafc;
-  border-color: #cbd5e1;
+  background: rgba(255, 255, 255, 1);
+  border-color: rgba(144, 171, 252, 0.5);
+  transform: translateY(-1px);
 }
 
 .save-btn {
-  background: linear-gradient(135deg, #3975A3 0%, #0D4D83 100%);
+  background: linear-gradient(135deg, rgba(86, 71, 221, 0.85) 0%, rgba(3, 70, 130, 0.8) 100%);
   color: white;
 }
 
 .save-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(58, 157, 202, 0.4);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(86, 71, 221, 0.3);
 }
 
 .delete-btn {
-  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.9) 0%, rgba(220, 38, 38, 0.85) 100%);
   color: white;
 }
 
 .delete-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
 }
 
 .cancel-btn:disabled,
@@ -1424,14 +1441,16 @@ export default {
 
 /* Error Banner */
 .error-banner {
-  background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
-  border: 2px solid #ef4444;
-  border-radius: 12px;
-  padding: 1rem;
-  margin-bottom: 1.5rem;
+  background: rgba(254, 242, 242, 0.8);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  border-radius: 8px;
+  padding: 0.5rem;
+  margin-bottom: 0.75rem;
   color: #dc2626;
-  font-weight: 600;
+  font-weight: 500;
   text-align: center;
+  font-size: 0.85rem;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Helvetica Neue', sans-serif;
 }
 
 /* Loading Indicator */
@@ -1439,14 +1458,16 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 1rem;
-  padding: 1.5rem;
-  background: linear-gradient(135deg, #A6E5F4 0%, #EFEEF0 100%);
-  border-radius: 12px;
-  border: 1px solid rgba(146, 171, 252, 0.3);
-  margin-bottom: 1.5rem;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  background: rgba(166, 229, 244, 0.3);
+  border-radius: 8px;
+  border: 1px solid rgba(144, 171, 252, 0.25);
+  margin-bottom: 0.75rem;
   color: #034682;
-  font-weight: 600;
+  font-weight: 500;
+  font-size: 0.85rem;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Helvetica Neue', sans-serif;
 }
 
 .spinner {
@@ -1604,42 +1625,7 @@ export default {
   }
 }
 
-/* Dialog Styles */
-.dialog-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 10000;
-  backdrop-filter: blur(4px);
-}
-
-.dialog-card {
-  background: white;
-  border-radius: 16px;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
-  max-width: 90vw;
-  width: 400px;
-  max-height: 90vh;
-  overflow-y: auto;
-  animation: dialog-slide-up 0.3s ease;
-}
-
-@keyframes dialog-slide-up {
-  from {
-    opacity: 0;
-    transform: translateY(20px) scale(0.95);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
+/* Duplicate dialog styles removed - using main styles above */
 
 .dialog-header {
   display: flex;
@@ -1654,6 +1640,9 @@ export default {
   color: #2d3748;
   font-size: 1.25rem;
   font-weight: 600;
+  text-align: center;
+  flex: 1;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Helvetica Neue', sans-serif;
 }
 
 .close-btn {
@@ -1686,6 +1675,7 @@ export default {
   font-weight: 600;
   color: #2d3748;
   margin: 0 0 1.5rem 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Helvetica Neue', sans-serif;
 }
 
 .score-input-section {
@@ -1703,6 +1693,7 @@ export default {
   color: #2d3748;
   margin-bottom: 1rem;
   text-align: center;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Helvetica Neue', sans-serif;
 }
 
 .score-slider-container {
@@ -1765,6 +1756,7 @@ export default {
   font-size: 0.8rem;
   color: #64748b;
   font-weight: 500;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Helvetica Neue', sans-serif;
 }
 
 .score-display {
@@ -1800,36 +1792,11 @@ export default {
 
 .score-description {
   font-weight: 600;
-  color: #4a5568;
-}
-
-.score-input-group {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  justify-content: center;
-}
-
-.score-number-input {
-  width: 60px;
-  padding: 0.5rem;
-  border: 2px solid #e2e8f0;
-  border-radius: 8px;
+  color: #2d3748;
   text-align: center;
-  font-size: 1rem;
-  font-weight: 600;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Helvetica Neue', sans-serif;
 }
 
-.score-number-input:focus {
-  outline: none;
-  border-color: #3A9DCA;
-  box-shadow: 0 0 0 3px rgba(58, 157, 202, 0.1);
-}
-
-.input-label {
-  font-size: 0.9rem;
-  color: #64748b;
-}
 
 .error-banner {
   background: #fef2f2;
@@ -1838,6 +1805,8 @@ export default {
   border-radius: 8px;
   margin-bottom: 1rem;
   border-left: 4px solid #dc2626;
+  text-align: center;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Helvetica Neue', sans-serif;
 }
 
 .loading-indicator {
@@ -1849,6 +1818,7 @@ export default {
   background: #f8fafc;
   border-radius: 8px;
   margin-bottom: 1rem;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Helvetica Neue', sans-serif;
 }
 
 .spinner {
@@ -1886,6 +1856,7 @@ export default {
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Helvetica Neue', sans-serif;
 }
 
 .delete-btn:hover:not(:disabled) {
@@ -1907,6 +1878,7 @@ export default {
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Helvetica Neue', sans-serif;
 }
 
 .cancel-btn:hover:not(:disabled) {
@@ -1928,6 +1900,7 @@ export default {
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Helvetica Neue', sans-serif;
 }
 
 .save-btn:hover:not(:disabled) {
