@@ -1175,9 +1175,9 @@ export default {
 
 .dialog-header {
   background: linear-gradient(135deg, 
-    rgba(45, 27, 57, 0.85) 0%, 
-    rgba(3, 70, 130, 0.8) 50%, 
-    rgba(86, 71, 221, 0.75) 100%);
+    rgba(144, 171, 252, 0.6) 0%, 
+    rgba(107, 132, 205, 0.55) 50%, 
+    rgba(58, 157, 202, 0.5) 100%);
   backdrop-filter: blur(10px);
   color: white !important;
   padding: 1rem 1.5rem;
