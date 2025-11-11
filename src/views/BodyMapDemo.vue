@@ -115,7 +115,7 @@ Access-Control-Allow-Headers: Content-Type</pre>
                 <div class="summary-footer">
                   <p class="report-date">Generated on {{ new Date().toLocaleDateString() }}</p>
                   <button @click="exportToPDF" class="secondary pdf-btn">
-                    📋 Export as PDF
+                    Export as PDF
                   </button>
                 </div>
               </div>
@@ -594,7 +594,7 @@ export default {
       }
     },
     
-    generateSummary() {
+    async generateSummary() {
       if (!this.summaryFromDate || !this.summaryToDate) {
         return
       }
@@ -620,38 +620,108 @@ export default {
         year: 'numeric'
       })
       
-      // Mock data for now - this would eventually analyze actual saved maps
-      const mockRegions = [
-        { name: 'left shoulder', count: 5, medianScore: 5 },
-        { name: 'lower back', count: 3, medianScore: 7 },
-        { name: 'neck', count: 2, medianScore: 4 }
-      ]
-      
-      // Generate summary text
-      let summaryParts = []
-      
-      if (mockRegions.length === 0) {
-        this.generatedSummary = `In the date range ${fromFormatted} to ${toFormatted}, you experienced no recorded pain. Great job! 🎉`
-      } else {
-        summaryParts.push(`In the date range ${fromFormatted} to ${toFormatted}:`)
-        summaryParts.push('')
+      try {
+        // Get saved maps for the date range
+        const mapsInRange = this.mockMode 
+          ? this.mockSavedMaps.filter(map => {
+              const mapDate = new Date(map.creationDate)
+              return mapDate >= fromDate && mapDate <= toDate
+            })
+          : await this.getMapsInRange(fromDate, toDate)
         
-        mockRegions.forEach(region => {
-          const regionText = `• ${region.name} pain ${region.count} time${region.count > 1 ? 's' : ''} with a median pain score of ${region.medianScore}/10`
-          summaryParts.push(regionText)
+        // Get map IDs and unique region names
+        const mapSet = mapsInRange.map(map => map._id).filter(id => id)
+        const regionNames = new Set()
+        
+        mapsInRange.forEach(map => {
+          if (map.regions && Array.isArray(map.regions)) {
+            map.regions.forEach(region => {
+              if (region && region.name) {
+                regionNames.add(region.name)
+              }
+            })
+          }
         })
         
-        const totalDays = Math.ceil((toDate - fromDate) / (1000 * 60 * 60 * 24)) + 1
-        const totalPainDays = Math.min(mockRegions.reduce((sum, r) => sum + r.count, 0), totalDays)
-        const painFreeDays = totalDays - totalPainDays
+        if (mapSet.length === 0 || regionNames.size === 0) {
+          this.generatedSummary = `In the date range ${fromFormatted} to ${toFormatted}, you experienced no recorded pain. Great job!`
+          return
+        }
         
-        summaryParts.push('')
-        summaryParts.push(`📊 Overall: ${totalPainDays} days with pain, ${painFreeDays} pain-free days out of ${totalDays} total days.`)
+        // Prepare period for API
+        const period = {
+          start: fromDate.toISOString(),
+          end: toDate.toISOString()
+        }
         
-        this.generatedSummary = summaryParts.join('\n')
+        // Get stats for each region using backend API
+        const regionStats = []
+        
+        for (const regionName of regionNames) {
+          try {
+            const response = await api.sumRegion(period, mapSet, regionName)
+            if (response.data && response.data.score !== undefined && response.data.frequency !== undefined) {
+              regionStats.push({
+                name: regionName,
+                medianScore: response.data.score,
+                frequency: response.data.frequency
+              })
+            }
+          } catch (error) {
+            console.error(`Error getting stats for region ${regionName}:`, error)
+            // Continue with other regions even if one fails
+          }
+        }
+        
+        // Generate summary text
+        let summaryParts = []
+        
+        if (regionStats.length === 0) {
+          this.generatedSummary = `In the date range ${fromFormatted} to ${toFormatted}, you experienced no recorded pain. Great job!`
+        } else {
+          summaryParts.push(`In the date range ${fromFormatted} to ${toFormatted}:`)
+          summaryParts.push('')
+          
+          regionStats.forEach(region => {
+            const regionText = `• ${region.name} pain ${region.frequency} time${region.frequency > 1 ? 's' : ''} with a median pain score of ${region.medianScore}/10`
+            summaryParts.push(regionText)
+          })
+          
+          const totalDays = Math.ceil((toDate - fromDate) / (1000 * 60 * 60 * 24)) + 1
+          const mapsWithPain = mapsInRange.filter(map => 
+            map.regions && map.regions.length > 0
+          ).length
+          const painFreeDays = totalDays - mapsWithPain
+          
+          summaryParts.push('')
+          summaryParts.push(`Overall: ${mapsWithPain} days with pain, ${painFreeDays} pain-free days out of ${totalDays} total days.`)
+          
+          this.generatedSummary = summaryParts.join('\n')
+        }
+        
+        console.log('Generated summary:', this.generatedSummary)
+      } catch (error) {
+        console.error('Error generating summary:', error)
+        alert('Failed to generate summary. Please try again.')
+        this.generatedSummary = ''
       }
-      
-      console.log('Generated summary:', this.generatedSummary)
+    },
+    
+    async getMapsInRange(fromDate, toDate) {
+      try {
+        // Get all saved maps for the user
+        const response = await api.getSavedMaps(this.userId)
+        const allMaps = Array.isArray(response.data) ? response.data : []
+        
+        // Filter maps in the date range
+        return allMaps.filter(map => {
+          const mapDate = new Date(map.creationDate)
+          return mapDate >= fromDate && mapDate <= toDate
+        })
+      } catch (error) {
+        console.error('Error getting maps in range:', error)
+        return []
+      }
     },
     
     async exportToPDF() {
@@ -1105,6 +1175,10 @@ button:disabled {
   border: 1px solid rgba(18, 86, 134, 0.3);
   backdrop-filter: blur(5px);
   color: white;
+}
+
+.pdf-btn {
+  margin-top: 1rem;
 }
 
 .summary-display {

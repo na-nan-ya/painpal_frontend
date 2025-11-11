@@ -1,25 +1,56 @@
 <template>
   <div id="app">
-    <header>
-      <nav class="navbar">
-        <!-- Hamburger Menu Button -->
-        <button 
-          class="hamburger-btn" 
-          @click="toggleMenu"
-          :class="{ 'active': isMenuOpen }"
-          aria-label="Toggle navigation menu"
-        >
-          <span class="hamburger-line"></span>
-          <span class="hamburger-line"></span>
-          <span class="hamburger-line"></span>
-        </button>
+    <!-- Login Screen -->
+    <Login 
+      v-if="!isAuthenticated"
+      @login-success="handleLoginSuccess"
+    />
 
-        <!-- Brand Title -->
-        <div class="nav-brand">
-          <h1>PainPal</h1>
-        </div>
-      </nav>
-    </header>
+    <!-- Main App -->
+    <template v-else>
+      <header>
+        <nav class="navbar">
+          <!-- Hamburger Menu Button -->
+          <button 
+            class="hamburger-btn" 
+            @click="toggleMenu"
+            :class="{ 'active': isMenuOpen }"
+            aria-label="Toggle navigation menu"
+          >
+            <span class="hamburger-line"></span>
+            <span class="hamburger-line"></span>
+            <span class="hamburger-line"></span>
+          </button>
+
+          <!-- Brand Title -->
+          <div class="nav-brand">
+            <h1>PainPal</h1>
+          </div>
+
+          <!-- Account Menu -->
+          <div class="account-menu" @click.stop="toggleAccountMenu">
+            <button class="account-btn" aria-label="Account menu">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 12C14.7614 12 17 9.76142 17 7C17 4.23858 14.7614 2 12 2C9.23858 2 7 4.23858 7 7C7 9.76142 9.23858 12 12 12Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M20.59 22C20.59 18.13 16.74 15 12 15C7.26 15 3.41 18.13 3.41 22" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </button>
+            <div v-if="isAccountMenuOpen" class="account-dropdown" @click.stop>
+              <div class="account-info">
+                <p class="account-username">{{ username }}</p>
+              </div>
+              <button @click="handleLogout" class="account-menu-item">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M9 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V5C3 4.46957 3.21071 3.96086 3.58579 3.58579C3.96086 3.21071 4.46957 3 5 3H9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M16 17L21 12L16 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M21 12H9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <span>Log Out</span>
+              </button>
+            </div>
+          </div>
+        </nav>
+      </header>
 
     <!-- Menu Overlay -->
     <div 
@@ -116,26 +147,37 @@
       
     </div>
     
-    <main class="container">
-          <router-view 
-            ref="routerView" 
-            :historical-map-to-load="historicalMapToLoad"
-            @maps-loaded="handleMapsLoaded"
-            @map-loaded="handleMapLoaded"
-          />
-    </main>
+      <main class="container">
+        <router-view 
+          ref="routerView" 
+          :historical-map-to-load="historicalMapToLoad"
+          @maps-loaded="handleMapsLoaded"
+          @map-loaded="handleMapLoaded"
+        />
+      </main>
+    </template>
   </div>
 </template>
 
 <script>
+import Login from './components/Login.vue'
+import api from './services/api'
+
 export default {
   name: 'App',
+  components: {
+    Login
+  },
   data() {
     return {
       isMenuOpen: false,
       savedMaps: [],
       loading: false,
-      userId: 'user123',
+      userId: null,
+      sessionId: null,
+      username: null,
+      isAuthenticated: false,
+      isAccountMenuOpen: false,
       mockMode: true,
       currentDate: new Date(),
       searchDate: '',
@@ -145,7 +187,100 @@ export default {
       searchMessage: ''
     }
   },
+  async mounted() {
+    // Check for stored authentication
+    const storedAuth = localStorage.getItem('auth')
+    if (storedAuth) {
+      try {
+        const auth = JSON.parse(storedAuth)
+        this.userId = auth.userId
+        this.sessionId = auth.sessionId
+        this.username = auth.username
+        this.isAuthenticated = true
+        
+        // Ensure we're on the main page if authenticated
+        if (this.$route.path !== '/') {
+          this.$router.push('/').catch(err => {
+            if (err.name !== 'NavigationDuplicated') {
+              console.error('Navigation error:', err)
+            }
+          })
+        }
+      } catch (e) {
+        console.error('Failed to parse stored auth:', e)
+        localStorage.removeItem('auth')
+      }
+    }
+
+    // Close account menu when clicking outside
+    document.addEventListener('click', this.handleClickOutside)
+    
+    // Import API service
+    const { default: apiService } = await import('@/services/api')
+    window.api = apiService // Make it globally available
+    
+    // Close menu when clicking outside or pressing escape
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        this.closeMenu()
+        this.isAccountMenuOpen = false
+      }
+    })
+  },
+  beforeUnmount() {
+    document.removeEventListener('click', this.handleClickOutside)
+  },
   methods: {
+    handleLoginSuccess(authData) {
+      this.userId = authData.userId
+      this.sessionId = authData.sessionId
+      this.username = authData.username
+      this.isAuthenticated = true
+      
+      // Store authentication in localStorage
+      localStorage.setItem('auth', JSON.stringify({
+        userId: authData.userId,
+        sessionId: authData.sessionId,
+        username: authData.username
+      }))
+      
+      // Navigate to main page after successful login/registration
+      this.$router.push('/').catch(err => {
+        // Ignore navigation errors (e.g., already on the route)
+        if (err.name !== 'NavigationDuplicated') {
+          console.error('Navigation error:', err)
+        }
+      })
+    },
+    
+    async handleLogout() {
+      try {
+        if (this.sessionId) {
+          await api.logout(this.sessionId)
+        }
+      } catch (error) {
+        console.error('Logout error:', error)
+      } finally {
+        // Clear authentication state
+        this.userId = null
+        this.sessionId = null
+        this.username = null
+        this.isAuthenticated = false
+        this.isAccountMenuOpen = false
+        localStorage.removeItem('auth')
+      }
+    },
+    
+    toggleAccountMenu() {
+      this.isAccountMenuOpen = !this.isAccountMenuOpen
+    },
+    
+    handleClickOutside(event) {
+      if (!event.target.closest('.account-menu')) {
+        this.isAccountMenuOpen = false
+      }
+    },
+    
     async toggleMenu() {
       if (!this.isMenuOpen) {
         if (this.mockMode) {
@@ -324,7 +459,7 @@ export default {
       })
     },
     
-    generateSummary() {
+    async generateSummary() {
       if (!this.summaryFromDate || !this.summaryToDate) {
         return
       }
@@ -350,37 +485,89 @@ export default {
         year: 'numeric'
       })
       
-      // Mock data for now - this would eventually analyze actual saved maps
-      const mockRegions = [
-        { name: 'left shoulder', count: 5, medianScore: 5 },
-        { name: 'lower back', count: 3, medianScore: 7 },
-        { name: 'neck', count: 2, medianScore: 4 }
-      ]
-      
-      // Generate summary text
-      let summaryParts = []
-      
-      if (mockRegions.length === 0) {
-        this.generatedSummary = `In the date range ${fromFormatted} to ${toFormatted}, you experienced no recorded pain. Great job! 🎉`
-      } else {
-        summaryParts.push(`In the date range ${fromFormatted} to ${toFormatted}:`)
-        
-        mockRegions.forEach(region => {
-          const regionText = `• ${region.name} pain ${region.count} time${region.count > 1 ? 's' : ''} with a median pain score of ${region.medianScore}/10`
-          summaryParts.push(regionText)
+      try {
+        // Get saved maps for the date range
+        const mapsInRange = this.savedMaps.filter(map => {
+          const mapDate = new Date(map.creationDate)
+          return mapDate >= fromDate && mapDate <= toDate
         })
         
-        const totalDays = Math.ceil((toDate - fromDate) / (1000 * 60 * 60 * 24)) + 1
-        const totalPainDays = Math.min(mockRegions.reduce((sum, r) => sum + r.count, 0), totalDays)
-        const painFreeDays = totalDays - totalPainDays
+        // Get map IDs and unique region names
+        const mapSet = mapsInRange.map(map => map._id).filter(id => id)
+        const regionNames = new Set()
         
-        summaryParts.push('')
-        summaryParts.push(`📊 Overall: ${totalPainDays} days with pain, ${painFreeDays} pain-free days out of ${totalDays} total days.`)
+        mapsInRange.forEach(map => {
+          if (map.regions && Array.isArray(map.regions)) {
+            map.regions.forEach(region => {
+              if (region && region.name) {
+                regionNames.add(region.name)
+              }
+            })
+          }
+        })
         
-        this.generatedSummary = summaryParts.join('\n')
+        if (mapSet.length === 0 || regionNames.size === 0) {
+          this.generatedSummary = `In the date range ${fromFormatted} to ${toFormatted}, you experienced no recorded pain. Great job!`
+          return
+        }
+        
+        // Prepare period for API
+        const period = {
+          start: fromDate.toISOString(),
+          end: toDate.toISOString()
+        }
+        
+        // Get stats for each region using backend API
+        const regionStats = []
+        
+        for (const regionName of regionNames) {
+          try {
+            const response = await api.sumRegion(period, mapSet, regionName)
+            if (response.data && response.data.score !== undefined && response.data.frequency !== undefined) {
+              regionStats.push({
+                name: regionName,
+                medianScore: response.data.score,
+                frequency: response.data.frequency
+              })
+            }
+          } catch (error) {
+            console.error(`Error getting stats for region ${regionName}:`, error)
+            // Continue with other regions even if one fails
+          }
+        }
+        
+        // Generate summary text
+        let summaryParts = []
+        
+        if (regionStats.length === 0) {
+          this.generatedSummary = `In the date range ${fromFormatted} to ${toFormatted}, you experienced no recorded pain. Great job!`
+        } else {
+          summaryParts.push(`In the date range ${fromFormatted} to ${toFormatted}:`)
+          summaryParts.push('')
+          
+          regionStats.forEach(region => {
+            const regionText = `• ${region.name} pain ${region.frequency} time${region.frequency > 1 ? 's' : ''} with a median pain score of ${region.medianScore}/10`
+            summaryParts.push(regionText)
+          })
+          
+          const totalDays = Math.ceil((toDate - fromDate) / (1000 * 60 * 60 * 24)) + 1
+          const mapsWithPain = mapsInRange.filter(map => 
+            map.regions && map.regions.length > 0
+          ).length
+          const painFreeDays = totalDays - mapsWithPain
+          
+          summaryParts.push('')
+          summaryParts.push(`Overall: ${mapsWithPain} days with pain, ${painFreeDays} pain-free days out of ${totalDays} total days.`)
+          
+          this.generatedSummary = summaryParts.join('\n')
+        }
+        
+        console.log('Generated summary:', this.generatedSummary)
+      } catch (error) {
+        console.error('Error generating summary:', error)
+        alert('Failed to generate summary. Please try again.')
+        this.generatedSummary = ''
       }
-      
-      console.log('Generated summary:', this.generatedSummary)
     },
     
     
@@ -463,18 +650,6 @@ export default {
       
       return dates
     }
-  },
-  async mounted() {
-    // Import API service
-    const { default: apiService } = await import('@/services/api')
-    window.api = apiService // Make it globally available
-    
-    // Close menu when clicking outside or pressing escape
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') {
-        this.closeMenu()
-      }
-    })
   }
 }
 </script>
@@ -573,6 +748,93 @@ header {
   margin: 0;
   font-size: 1.8rem;
   font-weight: 600;
+}
+
+/* Account Menu */
+.account-menu {
+  position: absolute;
+  right: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 1002;
+}
+
+.account-btn {
+  background: rgba(255, 255, 255, 0.15);
+  border: none;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: white;
+  transition: all 0.3s ease;
+  padding: 0;
+}
+
+.account-btn:hover {
+  background: rgba(255, 255, 255, 0.25);
+  transform: translateY(-50%) scale(1.05);
+}
+
+.account-dropdown {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  right: 0;
+  background: rgba(255, 255, 255, 0.98);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(45, 27, 57, 0.15);
+  border: 1px solid rgba(144, 171, 252, 0.3);
+  min-width: 200px;
+  overflow: hidden;
+  backdrop-filter: blur(10px);
+  animation: fadeIn 0.2s ease;
+}
+
+.account-info {
+  padding: 1rem;
+  border-bottom: 1px solid rgba(144, 171, 252, 0.2);
+}
+
+.account-username {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Helvetica Neue', sans-serif;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: rgba(44, 62, 80, 0.9);
+  margin: 0;
+}
+
+.account-menu-item {
+  width: 100%;
+  padding: 0.875rem 1rem;
+  background: transparent;
+  border: none;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Helvetica Neue', sans-serif;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: rgba(44, 62, 80, 0.8);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: left;
+}
+
+.account-menu-item:hover {
+  background: rgba(144, 171, 252, 0.1);
+  color: rgba(86, 71, 221, 0.9);
+}
+
+.account-menu-item svg {
+  color: rgba(44, 62, 80, 0.6);
+  transition: color 0.2s ease;
+}
+
+.account-menu-item:hover svg {
+  color: rgba(86, 71, 221, 0.9);
 }
 
 /* Collapsible Menu */

@@ -1,9 +1,8 @@
 import axios from 'axios'
 
 // Configure the base URL for your API
-// Update this to match your backend URL
-const API_BASE_URL = 'http://localhost:8000'
-const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api'
+// Uses environment variable if available, otherwise defaults to localhost:8000
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -143,6 +142,164 @@ export default {
     return api.post('/api/PainLocationScoring/_getRegionsForMap', {
       user: userId,
       map: mapId
+    })
+  },
+
+  // UserAuthentication API endpoints
+
+  /**
+   * Register a new user
+   * @param {string} username - The username
+   * @param {string} password - The password
+   * @returns {Promise} Response containing the new user ID
+   */
+  register(username, password) {
+    return api.post('/api/UserAuthentication/register', {
+      username,
+      password
+    })
+  },
+
+  /**
+   * Login a user
+   * @param {string} username - The username
+   * @param {string} password - The password
+   * @returns {Promise} Response containing session ID or null
+   */
+  login(username, password) {
+    return api.post('/api/UserAuthentication/login', {
+      username,
+      password
+    })
+  },
+
+  /**
+   * Logout a user
+   * @param {string} sessionId - The session ID
+   * @returns {Promise} Empty response on success
+   */
+  logout(sessionId) {
+    return api.post('/api/UserAuthentication/logout', {
+      session: sessionId
+    })
+  },
+
+  /**
+   * Get user maps
+   * @param {string} userId - The user ID
+   * @param {string} sessionId - The session ID
+   * @returns {Promise} Response containing array of map IDs
+   */
+  getUserMaps(userId, sessionId) {
+    return api.post('/api/UserAuthentication/getUserMaps', {
+      user: userId,
+      session: sessionId
+    })
+  },
+
+  /**
+   * Get user by username
+   * @param {string} username - The username
+   * @returns {Promise} Response containing user details
+   */
+  getUser(username) {
+    return api.post('/api/UserAuthentication/_getUser', {
+      username
+    })
+  },
+
+  // MapSummaryGeneration API endpoints
+
+  /**
+   * Calculate frequency and median score for a specific region across maps
+   * @param {Object} period - Date range with start and end dates
+   * @param {Array<string>} mapSet - Array of map IDs
+   * @param {string} regionName - Name of the region
+   * @returns {Promise} Response containing score and frequency
+   */
+  sumRegion(period, mapSet, regionName) {
+    return api.post('/api/MapSummaryGeneration/sumRegion', {
+      period,
+      mapSet,
+      regionName
+    })
+  },
+
+  /**
+   * Generate a human-readable summary string for a region
+   * @param {Object} period - Date range with start and end dates
+   * @param {string} regionName - Name of the region
+   * @param {number} score - Median score
+   * @param {number} frequency - Frequency count
+   * @returns {Promise} Response containing summary string
+   */
+  summarise(period, regionName, score, frequency) {
+    return api.post('/api/MapSummaryGeneration/summarise', {
+      period,
+      regionName,
+      score,
+      frequency
+    })
+  },
+
+  /**
+   * Generate and store a summary for a region
+   * @param {string} userId - The user ID
+   * @param {Object} period - Date range with start and end dates
+   * @param {Array<string>} mapSet - Array of map IDs
+   * @param {string} regionName - Name of the region
+   * @returns {Promise} Response containing summary ID
+   */
+  generateAndStoreSummary(userId, period, mapSet, regionName) {
+    return api.post('/api/MapSummaryGeneration/generateAndStoreSummary', {
+      user: userId,
+      period,
+      mapSet,
+      regionName
+    })
+  },
+
+  /**
+   * Export a summary as PDF
+   * @param {string} summaryId - The summary ID
+   * @returns {Promise} Response containing PDF buffer
+   */
+  exportSummaryAsPDF(summaryId) {
+    return api.post('/api/MapSummaryGeneration/exportSummaryAsPDF', {
+      summaryId
+    })
+  },
+
+  /**
+   * Export all user summaries as PDF
+   * @param {string} userId - The user ID
+   * @returns {Promise} Response containing PDF buffer
+   */
+  exportUserSummariesAsPDF(userId) {
+    return api.post('/api/MapSummaryGeneration/exportUserSummariesAsPDF', {
+      user: userId
+    })
+  },
+
+  /**
+   * Get a summary by ID
+   * @param {string} summaryId - The summary ID
+   * @returns {Promise} Response containing summary details
+   */
+  getSummary(summaryId) {
+    return api.post('/api/MapSummaryGeneration/_getSummary', {
+      summaryId
+    })
+  },
+
+  /**
+   * Get all summaries for a user
+   * @param {string} userId - The user ID
+   * @returns {Promise} Response containing array of summaries
+   */
+  getUserSummaries(userId) {
+    return api.post('/api/MapSummaryGeneration/_getUserSummaries', {
+      user: userId
     })
   }
 }

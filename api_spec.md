@@ -640,6 +640,461 @@
 {
   "error": "string"
 }
+
+## API Endpoints
+
+### POST /api/MapSummaryGeneration/sumRegion
+
+**Description:** Calculates the frequency and median score for a specific region across a set of maps within a date range.
+
+**Requirements:**
+- the Region must exist.
+
+**Effects:**
+- assimilates the Maps within the Range, counts the Region occurrences, and returns the associated Numbers
+
+**Request Body:**
+```json
+{
+  "period": { "start": "string", "end": "string" },
+  "mapSet": ["string"],
+  "regionName": "string"
+}
+```
+
+**Success Response Body (Action):**
+```json
+{
+  "score": "number",
+  "frequency": "number"
+}
+```
+
+**Error Response Body:**
+```json
+{
+  "error": "string"
+}
+```
+---
+### POST /api/MapSummaryGeneration/summarise
+
+**Description:** Generates a human-readable summary string from pre-calculated statistics for a region.
+
+**Requirements:**
+- the Region must exist
+
+**Effects:**
+- returns a String incorporating the given values of Range, Region, and the associated Numbers
+
+**Request Body:**
+```json
+{
+  "period": { "start": "string", "end": "string" },
+  "regionName": "string",
+  "score": "number",
+  "frequency": "number"
+}
+```
+
+**Success Response Body (Action):**
+```json
+{
+  "summary": "string"
+}
+```
+
+**Error Response Body:**
+```json
+{
+  "error": "string"
+}
+```
+---
+### POST /api/MapSummaryGeneration/generateAndStoreSummary
+
+**Description:** A convenience action that calculates statistics for a region and stores the generated summary.
+
+**Requirements:**
+- (No explicit requirements)
+
+**Effects:**
+- Combines the logic of `sumRegion` and `summarise`, then persists the resulting summary.
+
+**Request Body:**
+```json
+{
+  "user": "string",
+  "period": { "start": "string", "end": "string" },
+  "mapSet": ["string"],
+  "regionName": "string"
+}
+```
+
+**Success Response Body (Action):**
+```json
+{
+  "summaryId": "string"
+}
+```
+
+**Error Response Body:**
+```json
+{
+  "error": "string"
+}
+```
+---
+### POST /api/MapSummaryGeneration/exportSummaryAsPDF
+
+**Description:** Generates a PDF document for a single summary report.
+
+**Requirements:**
+- the summary must exist
+
+**Effects:**
+- generates a PDF document containing the summary text and returns it as a Uint8Array buffer
+
+**Request Body:**
+```json
+{
+  "summaryId": "string"
+}
+```
+
+**Success Response Body (Action):**
+```json
+{
+  "pdfBuffer": "array"
+}
+```
+
+**Error Response Body:**
+```json
+{
+  "error": "string"
+}
+```
+---
+### POST /api/MapSummaryGeneration/exportUserSummariesAsPDF
+
+**Description:** Generates a single PDF document containing all summary reports for a user.
+
+**Requirements:**
+- the user must have at least one summary
+
+**Effects:**
+- generates a PDF document containing all summaries for the user and returns it as a Uint8Array buffer
+
+**Request Body:**
+```json
+{
+  "user": "string"
+}
+```
+
+**Success Response Body (Action):**
+```json
+{
+  "pdfBuffer": "array"
+}
+```
+
+**Error Response Body:**
+```json
+{
+  "error": "string"
+}
+```
+---
+### POST /api/MapSummaryGeneration/_getSummary
+
+**Description:** Retrieves a previously generated summary by its ID.
+
+**Requirements:**
+- (No explicit requirements)
+
+**Effects:**
+- Returns the summary for a given summary ID, or null if not found.
+
+**Request Body:**
+```json
+{
+  "summaryId": "string"
+}
+```
+
+**Success Response Body (Query):**
+```json
+[
+  {
+    "summary": {
+      "_id": "string",
+      "name": "string",
+      "frequency": "number",
+      "medianScore": "number",
+      "summary": "string",
+      "period": { "start": "string", "end": "string" },
+      "userId": "string"
+    }
+  }
+]
+```
+
+**Error Response Body:**
+```json
+{
+  "error": "string"
+}
+```
+---
+### POST /api/MapSummaryGeneration/_getUserSummaries
+
+**Description:** Retrieves all summaries generated for a specific user.
+
+**Requirements:**
+- (No explicit requirements)
+
+**Effects:**
+- Returns all summaries for a given user.
+
+**Request Body:**
+```json
+{
+  "user": "string"
+}
+```
+
+**Success Response Body (Query):**
+```json
+[
+  {
+    "_id": "string",
+    "name": "string",
+    "frequency": "number",
+    "medianScore": "number",
+    "summary": "string",
+    "period": { "start": "string", "end": "string" },
+    "userId": "string"
+  }
+]
+```
+
+**Error Response Body:**
+```json
+{
+  "error": "string"
+}
+```
+---
+
+# API Specification: UserAuthentication Concept
+
+**Purpose:** allows users to create a simple identity with a username and password, manage login sessions, and access their associated body maps.
+
+---
+
+## API Endpoints
+
+### POST /api/UserAuthentication/register
+
+**Description:** Creates a new user account.
+
+**Requirements:**
+- no existing User has the same username
+
+**Effects:**
+- Creates and stores a new User with the given credentials
+- Returns the _id of the newly created User
+
+**Request Body:**
+```json
+{
+  "username": "string",
+  "password": "string"
+}
+```
+
+**Success Response Body (Action):**
+```json
+{
+  "user": "string"
+}
+```
+
+**Error Response Body:**
+```json
+{
+  "error": "string"
+}
+```
+---
+### POST /api/UserAuthentication/login
+
+**Description:** Authenticates a user and creates a new session.
+
+**Requirements:**
+- a User with the given username exists and password matches the username
+
+**Effects:**
+- returns a new active Session if the password matches, otherwise returns null
+
+**Request Body:**
+```json
+{
+  "username": "string",
+  "password": "string"
+}
+```
+
+**Success Response Body (Action):**
+```json
+{
+  "session": "string | null"
+}
+```
+
+**Error Response Body:**
+```json
+{
+  "error": "string"
+}
+```
+---
+### POST /api/UserAuthentication/logout
+
+**Description:** Deactivates a user's session.
+
+**Requirements:**
+- the Session exists and is active
+
+**Effects:**
+- sets the Session's active flag to false and ends the user's login session
+
+**Request Body:**
+```json
+{
+  "session": "string"
+}
+```
+
+**Success Response Body (Action):**
+```json
+{}
+```
+
+**Error Response Body:**
+```json
+{
+  "error": "string"
+}
+```
+---
+### POST /api/UserAuthentication/getUserMaps
+
+**Description:** Retrieves all body map IDs associated with a user.
+
+**Requirements:**
+- the User exists and has a valid active session
+
+**Effects:**
+- returns all BodyMaps associated with that User
+
+**Request Body:**
+```json
+{
+  "user": "string",
+  "session": "string"
+}
+```
+
+**Success Response Body (Action):**
+```json
+{
+  "maps": ["string"]
+}
+```
+
+**Error Response Body:**
+```json
+{
+  "error": "string"
+}
+```
+---
+### POST /api/UserAuthentication/_getUser
+
+**Description:** Retrieves a user's details by their username.
+
+**Requirements:**
+- (No explicit requirements)
+
+**Effects:**
+- Returns the user state for a given username, or null if not found.
+
+**Request Body:**
+```json
+{
+  "username": "string"
+}
+```
+
+**Success Response Body (Query):**
+```json
+[
+  {
+    "user": {
+      "_id": "string",
+      "username": "string",
+      "password": "string"
+    }
+  }
+]
+```
+
+**Error Response Body:**
+```json
+{
+  "error": "string"
+}
+```
+---
+### POST /api/UserAuthentication/_getSession
+
+**Description:** Retrieves the details of a specific session.
+
+**Requirements:**
+- (No explicit requirements)
+
+**Effects:**
+- Returns the session state for a given session ID, or null if not found.
+
+**Request Body:**
+```json
+{
+  "session": "string"
+}
+```
+
+**Success Response Body (Query):**
+```json
+[
+  {
+    "session": {
+      "_id": "string",
+      "userId": "string",
+      "active": "boolean",
+      "startTimestamp": "string"
+    }
+  }
+]
+```
+
+**Error Response Body:**
+```json
+{
+  "error": "string"
+}
 ```
 
 ---
