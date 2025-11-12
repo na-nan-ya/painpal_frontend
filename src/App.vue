@@ -346,15 +346,28 @@ export default {
                   score: r.score
                 }))
               }
+              
+              // If no regions found and it's a past date, add fake regions for demo
+              if (regions.length === 0 && this.isPastDate(map.creationDate)) {
+                regions = this.generateFakeRegionsForMap(map._id)
+                console.log(`📅 App.vue: Added ${regions.length} fake regions to past map ${map._id}`)
+              }
+              
               return {
                 ...map,
                 regions: regions
               }
             } catch (error) {
               console.error(`Error loading regions for map ${map._id}:`, error)
+              let regions = []
+              // If it's a past date, add fake regions even on error
+              if (this.isPastDate(map.creationDate)) {
+                regions = this.generateFakeRegionsForMap(map._id)
+                console.log(`📅 App.vue: Added ${regions.length} fake regions to past map ${map._id} (after error)`)
+              }
               return {
                 ...map,
-                regions: []
+                regions: regions
               }
             }
           })
@@ -436,6 +449,49 @@ export default {
       }
     },
     
+    isPastDate(creationDate) {
+      if (!creationDate) return false
+      const mapDate = new Date(creationDate)
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      mapDate.setHours(0, 0, 0, 0)
+      return mapDate < today
+    },
+    
+    generateFakeRegionsForMap(mapId) {
+      // Generate 2-5 random regions with scores for demo purposes
+      const allRegions = [
+        'head', 'neck', 'left-shoulder', 'right-shoulder', 'left-upper-arm', 'right-upper-arm',
+        'left-lower-arm', 'right-lower-arm', 'left-hand', 'right-hand', 'chest', 'abdomen',
+        'left-upper-leg', 'right-upper-leg', 'left-lower-leg', 'right-lower-leg',
+        'left-foot', 'right-foot', 'upper-back', 'lower-back'
+      ]
+      
+      const numRegions = Math.floor(Math.random() * 4) + 2 // 2-5 regions
+      const selectedRegions = []
+      const usedIndices = new Set()
+      
+      for (let i = 0; i < numRegions; i++) {
+        let index
+        do {
+          index = Math.floor(Math.random() * allRegions.length)
+        } while (usedIndices.has(index))
+        usedIndices.add(index)
+        
+        const regionName = allRegions[index]
+        const score = Math.floor(Math.random() * 8) + 3 // Score between 3-10
+        const fakeId = `fake-${mapId}-${regionName}-${Date.now()}-${i}`
+        
+        selectedRegions.push({
+          _id: fakeId,
+          name: regionName,
+          score: score
+        })
+      }
+      
+      return selectedRegions
+    },
+    
     previousMonth() {
       this.currentDate = new Date(this.currentDate.getFullYear(), this.currentDate.getMonth() - 1, 1)
     },
@@ -448,14 +504,12 @@ export default {
       console.log('📊 App.vue: loadSelectedMap called for map:', this.selectedMapInfo?._id)
       
       if (this.selectedMapInfo) {
-        // If it's a placeholder, try to find the actual map or create one
+        // Don't load placeholder maps - they're not real maps
         if (this.selectedMapInfo.isPlaceholder) {
-          // For placeholder dates, we can still load them to show the date
-          // The BodyMapDemo component will handle showing an empty map
-          this.loadHistoricalMap(this.selectedMapInfo)
-        } else {
-          this.loadHistoricalMap(this.selectedMapInfo)
+          console.warn('⚠️ App.vue: Cannot load placeholder map. Please select a date with a saved map.')
+          return
         }
+        this.loadHistoricalMap(this.selectedMapInfo)
       } else {
         console.error('❌ App.vue: No selectedMapInfo available')
       }
