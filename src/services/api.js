@@ -208,6 +208,17 @@ export default {
     })
   },
 
+  /**
+   * Get session details by session ID
+   * @param {string} sessionId - The session ID
+   * @returns {Promise} Response containing session details including userId
+   */
+  getSession(sessionId) {
+    return api.post('/api/UserAuthentication/_getSession', {
+      session: sessionId
+    })
+  },
+
   // MapSummaryGeneration API endpoints
 
   /**

@@ -98,20 +98,87 @@ export default {
           
           // Check if session exists (not null)
           if (response.data && response.data.session !== null && response.data.session !== undefined) {
-            // Get user ID from username lookup
-            const userResponse = await api.getUser(this.username)
-            const userId = userResponse.data && userResponse.data.length > 0 
-              ? userResponse.data[0].user._id 
-              : null
+            const sessionId = response.data.session
             
-            if (userId) {
-              this.$emit('login-success', {
-                userId,
-                sessionId: response.data.session,
-                username: this.username
-              })
-            } else {
-              this.errorMessage = 'Failed to retrieve user information'
+            // Get user ID from session details (more reliable than username lookup)
+            try {
+              const sessionResponse = await api.getSession(sessionId)
+              
+              // Handle different response formats per API spec
+              let userId = null
+              if (sessionResponse.data) {
+                // Check if it's an array format (per API spec: [{ session: { userId, ... } }])
+                if (Array.isArray(sessionResponse.data) && sessionResponse.data.length > 0) {
+                  userId = sessionResponse.data[0].session?.userId
+                } 
+                // Check if it's a direct object format
+                else if (sessionResponse.data.session && sessionResponse.data.session.userId) {
+                  userId = sessionResponse.data.session.userId
+                }
+                // Check if userId is directly in data
+                else if (sessionResponse.data.userId) {
+                  userId = sessionResponse.data.userId
+                }
+              }
+              
+              if (userId) {
+                this.$emit('login-success', {
+                  userId,
+                  sessionId: sessionId,
+                  username: this.username
+                })
+              } else {
+                console.error('Session response format unexpected:', sessionResponse.data)
+                // Fallback: try to get user by username as backup
+                try {
+                  const userResponse = await api.getUser(this.username)
+                  if (userResponse.data) {
+                    if (Array.isArray(userResponse.data) && userResponse.data.length > 0) {
+                      userId = userResponse.data[0].user?._id
+                    } else if (userResponse.data.user?._id) {
+                      userId = userResponse.data.user._id
+                    }
+                  }
+                  if (userId) {
+                    this.$emit('login-success', {
+                      userId,
+                      sessionId: sessionId,
+                      username: this.username
+                    })
+                  } else {
+                    this.errorMessage = 'Failed to retrieve user information. Please try again.'
+                  }
+                } catch (userError) {
+                  console.error('Fallback getUser also failed:', userError)
+                  this.errorMessage = 'Login successful but failed to retrieve user details. Please refresh the page.'
+                }
+              }
+            } catch (sessionError) {
+              console.error('Error fetching session information:', sessionError)
+              // Fallback: try to get user by username
+              try {
+                const userResponse = await api.getUser(this.username)
+                let userId = null
+                if (userResponse.data) {
+                  if (Array.isArray(userResponse.data) && userResponse.data.length > 0) {
+                    userId = userResponse.data[0].user?._id
+                  } else if (userResponse.data.user?._id) {
+                    userId = userResponse.data.user._id
+                  }
+                }
+                if (userId) {
+                  this.$emit('login-success', {
+                    userId,
+                    sessionId: sessionId,
+                    username: this.username
+                  })
+                } else {
+                  this.errorMessage = 'Failed to retrieve user information. Please try again.'
+                }
+              } catch (userError) {
+                console.error('Fallback getUser also failed:', userError)
+                this.errorMessage = 'Login successful but failed to retrieve user details. Please refresh the page.'
+              }
             }
           } else {
             // Session is null - login failed per API spec
