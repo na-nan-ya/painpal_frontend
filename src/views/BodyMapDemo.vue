@@ -215,12 +215,20 @@ export default {
         this.error = null
         const response = await api.getCurrentMap(this.userId)
         
-        // Handle actual backend response format
+        // Handle actual backend response format per API spec
+        // Response format: [{ map: { _id, ownerId, creationDate, imageUrl, isSaved } }]
         let map = null
-        if (response.data && response.data.map) {
-          map = response.data.map
-        } else if (response.data && Array.isArray(response.data) && response.data.length > 0) {
-          map = response.data[0].map
+        if (response.data) {
+          if (Array.isArray(response.data) && response.data.length > 0) {
+            // Array format: [{ map: {...} }]
+            map = response.data[0].map || response.data[0]
+          } else if (response.data.map) {
+            // Direct object format: { map: {...} }
+            map = response.data.map
+          } else if (response.data._id) {
+            // Direct map object
+            map = response.data
+          }
         }
         
         if (map && map._id) {
@@ -253,6 +261,9 @@ export default {
             console.log('✅ Loaded current map with regions:', regions.length)
             console.log('✅ Current map ID:', this.currentMap._id)
             console.log('✅ Today\'s map ID:', this.todaysMap._id)
+            
+            // Notify parent that current map is loaded (for calendar display)
+            this.$emit('current-map-loaded', this.currentMap)
           } catch (regionError) {
             console.error('Error loading regions for current map:', regionError)
             // Continue with empty regions if region load fails
@@ -272,7 +283,20 @@ export default {
           this.corsError = true
           this.error = '🚫 CORS Error: Cannot connect to backend server. The backend needs to allow requests from localhost:3000.'
         } else if (err.response?.status === 404) {
-          this.error = 'No current map available. Your daily map will be automatically generated at midnight.'
+          // No current map exists - generate one
+          console.log('⚠️ No current map found, generating new one...')
+          try {
+            const generateResponse = await api.generateMap(this.userId)
+            if (generateResponse.data && generateResponse.data.mapId) {
+              // Reload the newly generated map
+              await this.loadCurrentMap()
+            } else {
+              this.error = 'Failed to generate current map. Please try again.'
+            }
+          } catch (generateError) {
+            console.error('Error generating map:', generateError)
+            this.error = 'No current map available. Your daily map will be automatically generated at midnight.'
+          }
         } else {
           this.error = err.response?.data?.error || 'Failed to load current map. Please check your connection.'
         }
@@ -313,7 +337,13 @@ export default {
             }
           })
           this.todaysMap.regions = updatedRegions
+          this.currentMap.regions = updatedRegions // Also update currentMap
           console.log('💾 BodyMapDemo: Final today\'s map regions:', this.todaysMap.regions)
+          
+          // Notify parent that current map has been updated (for calendar display)
+          if (this.currentMap && this.currentMap._id) {
+            this.$emit('current-map-loaded', this.currentMap)
+          }
         }
       }
 

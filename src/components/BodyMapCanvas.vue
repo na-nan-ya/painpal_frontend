@@ -330,10 +330,14 @@ export default {
         // Store the region ID returned from the API
         if (response.data && response.data.region) {
           this.regionIds[regionName] = response.data.region
+          console.log('✅ BodyMapCanvas: Region added successfully, ID:', response.data.region)
+        } else {
+          console.error('❌ BodyMapCanvas: addRegion response missing region ID:', response.data)
         }
       } catch (error) {
         console.error('Error adding region:', error)
         this.errorMessage = 'Failed to add region. Please try again.'
+        throw error // Re-throw so caller knows it failed
       } finally {
         this.isLoading = false
       }
@@ -484,7 +488,37 @@ export default {
       console.log('💾 BodyMapCanvas: regionId for', this.currentScoringRegion, ':', regionId)
       
       if (!regionId) {
-        console.warn('No region ID found, skipping API score update')
+        console.warn('No region ID found, attempting to add region first...')
+        // Try to add the region first if it doesn't exist
+        try {
+          await this.addRegionToAPI(this.currentScoringRegion)
+          const newRegionId = this.regionIds[this.currentScoringRegion]
+          if (newRegionId) {
+            // Now save the score with the new region ID
+            try {
+              this.isLoading = true
+              await api.scoreRegion(this.userId, newRegionId, this.tempScore)
+              this.regionScores[this.currentScoringRegion] = this.tempScore
+              console.log('✅ BodyMapCanvas: Region added and score saved successfully')
+              
+              this.closeDialog()
+              this.$nextTick(() => {
+                this.emitSelectionChange()
+              })
+            } catch (scoreError) {
+              console.error('Error saving score after adding region:', scoreError)
+              this.errorMessage = 'Failed to save score. Please try again.'
+            } finally {
+              this.isLoading = false
+            }
+            return
+          }
+        } catch (addError) {
+          console.error('Error adding region:', addError)
+        }
+        
+        // If we still don't have a regionId, save locally but show warning
+        console.warn('⚠️ No region ID available, saving score locally only')
         this.regionScores[this.currentScoringRegion] = this.tempScore
         console.log('💾 BodyMapCanvas: Score saved locally. regionScores after:', this.regionScores)
         
@@ -523,7 +557,9 @@ export default {
       try {
         this.isLoading = true
         console.log('🌐 BodyMapCanvas: Making API call to save score...')
-        await api.scoreRegion(this.userId, regionId, this.tempScore)
+        console.log('🌐 BodyMapCanvas: userId:', this.userId, 'regionId:', regionId, 'score:', this.tempScore)
+        const response = await api.scoreRegion(this.userId, regionId, this.tempScore)
+        console.log('🌐 BodyMapCanvas: API response:', response)
         this.regionScores[this.currentScoringRegion] = this.tempScore
         console.log('🌐 BodyMapCanvas: API call successful. regionScores after:', this.regionScores)
         
@@ -539,7 +575,8 @@ export default {
         console.log('==== SAVE SCORE END (API success) ====\n');
       } catch (error) {
         console.error('Error scoring region:', error)
-        this.errorMessage = 'Failed to save score. Please try again.'
+        console.error('Error details:', error.response?.data || error.message)
+        this.errorMessage = error.response?.data?.error || 'Failed to save score. Please try again.'
         console.log('==== SAVE SCORE END (API error) ====\n');
       } finally {
         this.isLoading = false

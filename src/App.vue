@@ -156,6 +156,7 @@
           :historical-map-to-load="historicalMapToLoad"
           @maps-loaded="handleMapsLoaded"
           @map-loaded="handleMapLoaded"
+          @current-map-loaded="handleCurrentMapLoaded"
         />
       </main>
     </template>
@@ -316,7 +317,8 @@ export default {
         this.loading = true
         const response = await api.getSavedMaps(this.userId)
         
-        // Handle different response formats
+        // Handle different response formats per API spec
+        // Response format: [{ _id, ownerId, creationDate, imageUrl, isSaved }]
         let maps = []
         if (Array.isArray(response.data)) {
           maps = response.data
@@ -328,6 +330,8 @@ export default {
             item && (item._id || item.creationDate)
           )
         }
+        
+        console.log('📅 App.vue: Loaded', maps.length, 'saved maps from backend')
         
         // Load regions for each map
         const mapsWithRegions = await Promise.all(
@@ -356,7 +360,13 @@ export default {
         )
         
         this.savedMaps = mapsWithRegions
-        console.log('Loaded saved maps:', this.savedMaps.length)
+        console.log('📅 App.vue: Loaded saved maps with regions:', this.savedMaps.length)
+        // Log maps with regions for debugging
+        this.savedMaps.forEach((map, idx) => {
+          if (map.regions && map.regions.length > 0) {
+            console.log(`  Map ${idx}: ${map.creationDate} has ${map.regions.length} regions`)
+          }
+        })
       } catch (error) {
         console.error('Error loading saved maps:', error)
         this.savedMaps = []
@@ -402,6 +412,26 @@ export default {
       })
       if (todayMap) {
         this.selectedMapInfo = todayMap
+      }
+    },
+    
+    handleCurrentMapLoaded(currentMap) {
+      // Add current map to savedMaps if it's not already there (for calendar display)
+      if (currentMap && currentMap._id) {
+        const today = new Date().toISOString().split('T')[0]
+        const mapDate = currentMap.creationDate ? currentMap.creationDate.split('T')[0] : null
+        
+        // If current map is for today, ensure it's in savedMaps for calendar
+        if (mapDate === today) {
+          const existingIndex = this.savedMaps.findIndex(m => m._id === currentMap._id)
+          if (existingIndex >= 0) {
+            // Update existing map with latest regions
+            this.savedMaps[existingIndex] = { ...currentMap }
+          } else {
+            // Add current map to savedMaps for calendar display
+            this.savedMaps.unshift({ ...currentMap })
+          }
+        }
       }
     },
     
@@ -706,12 +736,15 @@ export default {
         date.setDate(startDate.getDate() + i)
         
         const dateStr = date.toISOString().split('T')[0]
-        const mapForDate = this.savedMaps.find(map => 
-          map.creationDate.split('T')[0] === dateStr
-        )
-        
         const isToday = date.getTime() === today.getTime()
         const isPast = date <= today
+        
+        // Find map for this date - check saved maps
+        let mapForDate = this.savedMaps.find(map => {
+          if (!map || !map.creationDate) return false
+          const mapDateStr = map.creationDate.split('T')[0]
+          return mapDateStr === dateStr
+        })
         
         dates.push({
           key: dateStr,
