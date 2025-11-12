@@ -197,6 +197,10 @@ export default {
         this.sessionId = auth.sessionId
         this.username = auth.username
         this.isAuthenticated = true
+        this.mockMode = false // Disable mock mode when user is authenticated
+        
+        // Load saved maps from backend
+        await this.loadSavedMaps()
         
         // Ensure we're on the main page if authenticated
         if (this.$route.path !== '/') {
@@ -231,11 +235,12 @@ export default {
     document.removeEventListener('click', this.handleClickOutside)
   },
   methods: {
-    handleLoginSuccess(authData) {
+    async handleLoginSuccess(authData) {
       this.userId = authData.userId
       this.sessionId = authData.sessionId
       this.username = authData.username
       this.isAuthenticated = true
+      this.mockMode = false // Disable mock mode when user is authenticated
       
       // Store authentication in localStorage
       localStorage.setItem('auth', JSON.stringify({
@@ -243,6 +248,9 @@ export default {
         sessionId: authData.sessionId,
         username: authData.username
       }))
+      
+      // Load saved maps from backend
+      await this.loadSavedMaps()
       
       // Navigate to main page after successful login/registration
       this.$router.push('/').catch(err => {
@@ -283,9 +291,8 @@ export default {
     
     async toggleMenu() {
       if (!this.isMenuOpen) {
-        if (this.mockMode) {
-          // Maps should already be loaded by child component
-        } else {
+        // Always load saved maps when opening menu (refresh data)
+        if (!this.mockMode && this.userId) {
           await this.loadSavedMaps()
         }
       }
@@ -297,10 +304,56 @@ export default {
     },
     
     async loadSavedMaps() {
+      if (!this.userId) {
+        console.warn('Cannot load saved maps: no userId')
+        return
+      }
+      
       try {
         this.loading = true
         const response = await api.getSavedMaps(this.userId)
-        this.savedMaps = Array.isArray(response.data) ? response.data : (response.data?.maps || [])
+        
+        // Handle different response formats
+        let maps = []
+        if (Array.isArray(response.data)) {
+          maps = response.data
+        } else if (response.data?.maps && Array.isArray(response.data.maps)) {
+          maps = response.data.maps
+        } else if (response.data && typeof response.data === 'object') {
+          // Try to extract maps from response
+          maps = Object.values(response.data).filter(item => 
+            item && (item._id || item.creationDate)
+          )
+        }
+        
+        // Load regions for each map
+        const mapsWithRegions = await Promise.all(
+          maps.map(async (map) => {
+            try {
+              const regionsResponse = await api.getRegionsForMap(this.userId, map._id)
+              let regions = []
+              if (Array.isArray(regionsResponse.data)) {
+                regions = regionsResponse.data.map(r => ({
+                  name: r.name,
+                  score: r.score
+                }))
+              }
+              return {
+                ...map,
+                regions: regions
+              }
+            } catch (error) {
+              console.error(`Error loading regions for map ${map._id}:`, error)
+              return {
+                ...map,
+                regions: []
+              }
+            }
+          })
+        )
+        
+        this.savedMaps = mapsWithRegions
+        console.log('Loaded saved maps:', this.savedMaps.length)
       } catch (error) {
         console.error('Error loading saved maps:', error)
         this.savedMaps = []

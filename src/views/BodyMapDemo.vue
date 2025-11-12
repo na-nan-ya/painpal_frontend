@@ -152,6 +152,23 @@ export default {
     }
   },
   data() {
+    // Get userId from localStorage or use mock
+    const storedAuth = localStorage.getItem('auth')
+    let userId = 'user123'
+    let mockMode = true
+    
+    if (storedAuth) {
+      try {
+        const auth = JSON.parse(storedAuth)
+        if (auth.userId) {
+          userId = auth.userId
+          mockMode = false
+        }
+      } catch (e) {
+        console.error('Failed to parse stored auth:', e)
+      }
+    }
+    
     return {
       currentMap: null,
       mapSelections: [],
@@ -159,9 +176,9 @@ export default {
       loading: false,
       error: null,
       corsError: false,
-      mockMode: true,
+      mockMode: mockMode,
       currentMapIndex: 0,
-      userId: 'user123',
+      userId: userId,
       // Mock saved maps with varied regions - including empty days
       mockSavedMaps: [],
       // Historical map viewing state
@@ -352,8 +369,10 @@ export default {
         // Mark as viewing historical map
         this.isViewingHistoricalMap = true
         
-        // Find the index for navigation
-        this.currentMapIndex = this.mockSavedMaps.findIndex(m => m._id === map._id)
+        // Find the index for navigation (if using mock mode)
+        if (this.mockMode) {
+          this.currentMapIndex = this.mockSavedMaps.findIndex(m => m._id === map._id)
+        }
         
         console.log('✅ BodyMapDemo: Historical map loaded successfully with', this.mapSelections.length, 'regions')
         
