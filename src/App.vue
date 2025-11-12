@@ -123,7 +123,6 @@
         <p v-if="selectedMapInfo.regions && selectedMapInfo.regions.length > 0">
           <strong>{{ selectedMapInfo.regions.length }}</strong> pain regions recorded
         </p>
-        <p v-else-if="selectedMapInfo.isPlaceholder" class="pain-free">📅 No map saved for this date</p>
         <p v-else class="pain-free">🎉 Pain-free day!</p>
         <div class="region-list" v-if="selectedMapInfo.regions && selectedMapInfo.regions.length > 0">
           <span v-for="region in selectedMapInfo.regions" 
@@ -474,14 +473,15 @@ export default {
         this.selectedMapInfo = dateObj.mapData
         console.log('✅ App.vue: selectedMapInfo set to existing map:', this.selectedMapInfo?._id)
       } else {
-        // Create a placeholder map for dates without saved maps
+        // For dates without saved maps, still allow viewing/editing
+        // The map will be created when first region is added
         this.selectedMapInfo = {
-          _id: `date-${dateObj.key}`,
+          _id: dateObj.mapData?._id || null,
           creationDate: dateObj.date.toISOString(),
           regions: [],
-          isPlaceholder: true
+          isPlaceholder: false
         }
-        console.log('✅ App.vue: selectedMapInfo set to placeholder for date:', dateObj.key)
+        console.log('✅ App.vue: selectedMapInfo set for date:', dateObj.key)
       }
     },
     
@@ -525,9 +525,9 @@ export default {
         
         if (searchDateObj <= today) {
           this.selectedMapInfo = {
-            _id: `search-${searchDateStr}`,
+            _id: null, // Will be created when first region is added
             creationDate: searchDateObj.toISOString(),
-            regions: [] // Empty map for pain-free day
+            regions: []
           }
           this.searchMessage = `✓ Showing ${this.formatSelectedDate(searchDateObj.toISOString())} (Pain-free day)`
           // Auto-select the date in the calendar

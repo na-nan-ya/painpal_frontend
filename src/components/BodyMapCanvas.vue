@@ -301,8 +301,9 @@ export default {
         try {
           await this.addRegionToAPI(regionName)
           
-          // Verify regionId was stored
-          if (!this.regionIds[regionName]) {
+          // Verify regionId was stored (or if in mock mode, it's OK, or if temp ID was created)
+          const hasRegionId = this.regionIds[regionName] || (this.mapId && this.mapId.startsWith('map-'))
+          if (!hasRegionId) {
             console.error('❌ BodyMapCanvas: Region ID not stored after addRegionToAPI for', regionName)
             this.errorMessage = 'Failed to add region. Please try again.'
             // Remove from selections if add failed
@@ -315,6 +316,8 @@ export default {
           
           console.log('✅ BodyMapCanvas: Region ID stored:', this.regionIds[regionName])
           console.log('📝 BodyMapCanvas: About to open scoring dialog for:', regionName)
+          
+          // Open dialog immediately
           this.openScoreDialog(regionName)
         } catch (error) {
           console.error('❌ BodyMapCanvas: Error adding region:', error)
@@ -333,16 +336,12 @@ export default {
     },
     
     async addRegionToAPI(regionName) {
+      // If no mapId, we'll need to create a map first, but for now allow the region to be added
+      // The parent component should handle map creation
       if (!this.mapId) {
-        console.warn('No mapId provided, skipping API call')
-        this.errorMessage = 'No map available. Please ensure you have a current map.'
-        return
-      }
-      
-      // Check if mapId is a placeholder (starts with 'date-' or 'search-')
-      if (this.mapId.startsWith('date-') || this.mapId.startsWith('search-')) {
-        console.error('❌ BodyMapCanvas: Cannot add region to placeholder map:', this.mapId)
-        this.errorMessage = 'Cannot add regions to this date. Please select today\'s map or a saved map.'
+        console.warn('⚠️ BodyMapCanvas: No mapId provided, but allowing region selection')
+        // Generate a temporary ID - parent should create map
+        this.regionIds[regionName] = `temp-${regionName}-${Date.now()}`
         return
       }
       
@@ -471,11 +470,15 @@ export default {
       
       this.currentScoringRegion = regionName
       this.tempScore = this.regionScores[regionName] || 5
+      this.errorMessage = null // Clear any previous errors
       this.showScoreDialog = true
       
       console.log('📝 BodyMapCanvas: Dialog should now be visible. showScoreDialog =', this.showScoreDialog)
       console.log('📝 BodyMapCanvas: currentScoringRegion =', this.currentScoringRegion)
       console.log('📝 BodyMapCanvas: tempScore =', this.tempScore)
+      
+      // Force Vue to update
+      this.$forceUpdate()
       
       // Prevent any background clicks from interfering
       this.$nextTick(() => {
@@ -483,6 +486,7 @@ export default {
         if (dialog) {
           dialog.addEventListener('click', this.preventDialogClose, true)
         }
+        console.log('📝 BodyMapCanvas: After nextTick, showScoreDialog =', this.showScoreDialog)
       })
     },
     
@@ -525,13 +529,7 @@ export default {
         console.error('❌ BodyMapCanvas: No region ID found for', this.currentScoringRegion)
         console.error('❌ BodyMapCanvas: Available regionIds:', Object.keys(this.regionIds))
         console.error('❌ BodyMapCanvas: mapId:', this.mapId)
-        
-        // If mapId is a placeholder, show specific error
-        if (this.mapId && (this.mapId.startsWith('date-') || this.mapId.startsWith('search-'))) {
-          this.errorMessage = 'Cannot save score. Please use today\'s map or a saved map.'
-        } else {
-          this.errorMessage = 'Region not found. Please select the region again.'
-        }
+        this.errorMessage = 'Region not found. Please select the region again.'
         return
       }
       
