@@ -150,11 +150,22 @@ export default {
                   }
                 } catch (userError) {
                   console.error('Fallback getUser also failed:', userError)
-                  this.errorMessage = 'Login successful but failed to retrieve user details. Please refresh the page.'
+                  if (userError.timeoutError || userError.code === 'ECONNABORTED') {
+                    this.errorMessage = 'Request timed out while retrieving user information. Please try again.'
+                  } else {
+                    this.errorMessage = 'Login successful but failed to retrieve user details. Please refresh the page.'
+                  }
                 }
               }
             } catch (sessionError) {
               console.error('Error fetching session information:', sessionError)
+              
+              // Check if it's a timeout error
+              if (sessionError.timeoutError || sessionError.code === 'ECONNABORTED') {
+                this.errorMessage = 'Request timed out while retrieving user information. Please try again.'
+                return
+              }
+              
               // Fallback: try to get user by username
               try {
                 const userResponse = await api.getUser(this.username)
@@ -177,7 +188,11 @@ export default {
                 }
               } catch (userError) {
                 console.error('Fallback getUser also failed:', userError)
-                this.errorMessage = 'Login successful but failed to retrieve user details. Please refresh the page.'
+                if (userError.timeoutError || userError.code === 'ECONNABORTED') {
+                  this.errorMessage = 'Request timed out. Please try again.'
+                } else {
+                  this.errorMessage = 'Login successful but failed to retrieve user details. Please refresh the page.'
+                }
               }
             }
           } else {
@@ -210,10 +225,16 @@ export default {
         }
       } catch (error) {
         console.error('Authentication error:', error)
-        this.errorMessage = error.response?.data?.error || 
-          (this.isLoginMode 
-            ? 'Failed to sign in. Please check your credentials.' 
-            : 'Registration failed. Username may already exist.')
+        
+        // Handle timeout errors specifically
+        if (error.timeoutError || error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
+          this.errorMessage = error.userMessage || 'Request timed out. The server may be slow to respond. Please try again.'
+        } else {
+          this.errorMessage = error.response?.data?.error || 
+            (this.isLoginMode 
+              ? 'Failed to sign in. Please check your credentials.' 
+              : 'Registration failed. Username may already exist.')
+        }
       } finally {
         this.isLoading = false
       }

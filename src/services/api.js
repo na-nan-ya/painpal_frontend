@@ -8,14 +8,23 @@ const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json'
-  }
+  },
+  timeout: 30000, // 30 seconds timeout for slow backends (e.g., Render.com free tier)
+  timeoutErrorMessage: 'Request timed out. The server may be slow to respond. Please try again.'
 })
 
 // Add request interceptor for error handling
 api.interceptors.response.use(
   response => response,
   error => {
-    console.error('API Error:', error)
+    // Handle timeout errors specifically
+    if (error.code === 'ECONNABORTED' || error.message === 'timeout exceeded') {
+      console.error('API Timeout Error:', error)
+      error.timeoutError = true
+      error.userMessage = 'Request timed out. The server may be slow to respond. Please try again.'
+    } else {
+      console.error('API Error:', error)
+    }
     return Promise.reject(error)
   }
 )
