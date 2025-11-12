@@ -133,7 +133,7 @@
           </span>
         </div>
         <button @click="loadSelectedMap" class="view-map-btn">
-          {{ selectedMapInfo.isPlaceholder ? 'View Date' : 'View Full Map' }}
+          View Map
         </button>
       </div>
       

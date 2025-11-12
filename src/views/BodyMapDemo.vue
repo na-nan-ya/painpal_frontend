@@ -245,7 +245,14 @@ export default {
             this.currentMap.regions = regions
             this.todaysMap = { ...this.currentMap }
             
+            // Ensure currentMap is set as todaysMap for proper tracking
+            if (!this.todaysMap) {
+              this.todaysMap = { ...this.currentMap }
+            }
+            
             console.log('✅ Loaded current map with regions:', regions.length)
+            console.log('✅ Current map ID:', this.currentMap._id)
+            console.log('✅ Today\'s map ID:', this.todaysMap._id)
           } catch (regionError) {
             console.error('Error loading regions for current map:', regionError)
             // Continue with empty regions if region load fails
@@ -421,48 +428,60 @@ export default {
       })
     },
     
-    returnToCurrentMap() {
+    async returnToCurrentMap() {
       console.log('🔙 BodyMapDemo: Returning to current map')
+      
+      // Reload current map from backend to get latest data
+      if (!this.mockMode && this.userId) {
+        try {
+          await this.loadCurrentMap()
+          // After loading, todaysMap should be set
+          if (this.currentMap) {
+            this.todaysMap = { ...this.currentMap }
+          }
+        } catch (error) {
+          console.error('Error reloading current map:', error)
+        }
+      }
+      
       console.log('🔙 BodyMapDemo: Today\'s map:', this.todaysMap)
       
       if (this.todaysMap) {
-        this.currentMap = this.todaysMap
+        // Clear current state first
+        this.currentMap = null
+        this.mapSelections = []
+        this.currentSelections = []
         
-        // Use the current state of today's map (which should have been updated by handleSelectionChange)
-        this.mapSelections = this.todaysMap.regions ? this.todaysMap.regions.map(r => r.name) : []
-        this.currentSelections = [...this.mapSelections]
-        
-        console.log('🔙 BodyMapDemo: Restored current map with selections:', this.currentSelections)
-        console.log('🔙 BodyMapDemo: Today\'s map regions with scores:', this.todaysMap.regions)
-        
-        // Debug what will be passed to BodyMapCanvas
-        console.log('🔙 BodyMapDemo: currentMap._id:', this.currentMap._id)
-        console.log('🔙 BodyMapDemo: mapSelections (initialSelections prop):', this.mapSelections)
-        console.log('🔙 BodyMapDemo: currentMap.regions (savedRegions prop):', this.currentMap.regions)
-        
-        if (this.currentMap.regions) {
-          this.currentMap.regions.forEach((region, index) => {
-            console.log(`🔙 BodyMapDemo: Region ${index} for BodyMapCanvas:`, {
-              name: region.name,
-              score: region.score,
-              fullRegion: region
-            })
-          })
-        }
-        
-        this.isViewingHistoricalMap = false
-        
-        // Clear saved selections since we're back to current
-        this.savedCurrentSelections = []
-        this.savedCurrentMapSelections = []
-        
-        // Force update
+        // Wait for reset, then restore
         this.$nextTick(() => {
-          console.log('🔙 BodyMapDemo: After $nextTick - about to force update')
-          this.$forceUpdate()
+          this.currentMap = { ...this.todaysMap }
+          
+          // Use the current state of today's map (which should have been updated by handleSelectionChange)
+          this.mapSelections = this.todaysMap.regions ? this.todaysMap.regions.map(r => r.name) : []
+          this.currentSelections = [...this.mapSelections]
+          
+          // Mark as no longer viewing historical map
+          this.isViewingHistoricalMap = false
+          
+          // Clear saved selections since we're back to current
+          this.savedCurrentSelections = []
+          this.savedCurrentMapSelections = []
+          
+          console.log('🔙 BodyMapDemo: Restored current map with selections:', this.currentSelections)
+          console.log('🔙 BodyMapDemo: Today\'s map regions with scores:', this.todaysMap.regions)
+          
+          // Force update to ensure BodyMapCanvas sees the changes
+          this.$nextTick(() => {
+            this.$forceUpdate()
+          })
         })
       } else {
-        console.error('❌ BodyMapDemo: todaysMap is null/undefined, cannot return to current map')
+        // If no todaysMap, try to load current map
+        if (!this.mockMode && this.userId) {
+          await this.loadCurrentMap()
+        } else {
+          console.error('❌ BodyMapDemo: todaysMap is null/undefined, cannot return to current map')
+        }
       }
     },
     
