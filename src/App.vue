@@ -123,6 +123,7 @@
         <p v-if="selectedMapInfo.regions && selectedMapInfo.regions.length > 0">
           <strong>{{ selectedMapInfo.regions.length }}</strong> pain regions recorded
         </p>
+        <p v-else-if="selectedMapInfo.isPlaceholder" class="pain-free">📅 No map saved for this date</p>
         <p v-else class="pain-free">🎉 Pain-free day!</p>
         <div class="region-list" v-if="selectedMapInfo.regions && selectedMapInfo.regions.length > 0">
           <span v-for="region in selectedMapInfo.regions" 
@@ -131,7 +132,9 @@
             {{ formatRegionName(region.name) }}
           </span>
         </div>
-        <button @click="loadSelectedMap" class="view-map-btn">View Full Map</button>
+        <button @click="loadSelectedMap" class="view-map-btn">
+          {{ selectedMapInfo.isPlaceholder ? 'View Date' : 'View Full Map' }}
+        </button>
       </div>
       
       <div class="calendar-legend">
@@ -414,7 +417,14 @@ export default {
       console.log('📊 App.vue: loadSelectedMap called for map:', this.selectedMapInfo?._id)
       
       if (this.selectedMapInfo) {
-        this.loadHistoricalMap(this.selectedMapInfo)
+        // If it's a placeholder, try to find the actual map or create one
+        if (this.selectedMapInfo.isPlaceholder) {
+          // For placeholder dates, we can still load them to show the date
+          // The BodyMapDemo component will handle showing an empty map
+          this.loadHistoricalMap(this.selectedMapInfo)
+        } else {
+          this.loadHistoricalMap(this.selectedMapInfo)
+        }
       } else {
         console.error('❌ App.vue: No selectedMapInfo available')
       }
@@ -423,15 +433,32 @@ export default {
     selectDate(dateObj) {
       console.log('📅 App.vue: selectDate called for:', dateObj.date?.toDateString())
       
-      if (!dateObj.currentMonth || (!dateObj.isPast && !dateObj.isToday)) return
+      // Allow selecting any past date or today
+      if (!dateObj.currentMonth || (!dateObj.isPast && !dateObj.isToday)) {
+        console.log('❌ App.vue: Cannot select future dates or other month dates')
+        return
+      }
       
+      // Clear previous selection
       this.calendarDates.forEach(date => {
         date.isSelected = false
       })
       dateObj.isSelected = true
       
-      this.selectedMapInfo = dateObj.mapData
-      console.log('✅ App.vue: selectedMapInfo set to map:', this.selectedMapInfo?._id)
+      // Set selected map info - create empty map if no map exists for this date
+      if (dateObj.mapData) {
+        this.selectedMapInfo = dateObj.mapData
+        console.log('✅ App.vue: selectedMapInfo set to existing map:', this.selectedMapInfo?._id)
+      } else {
+        // Create a placeholder map for dates without saved maps
+        this.selectedMapInfo = {
+          _id: `date-${dateObj.key}`,
+          creationDate: dateObj.date.toISOString(),
+          regions: [],
+          isPlaceholder: true
+        }
+        console.log('✅ App.vue: selectedMapInfo set to placeholder for date:', dateObj.key)
+      }
     },
     
     formatRegionName(regionName) {

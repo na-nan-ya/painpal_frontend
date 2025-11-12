@@ -216,15 +216,48 @@ export default {
         const response = await api.getCurrentMap(this.userId)
         
         // Handle actual backend response format
+        let map = null
         if (response.data && response.data.map) {
-          this.currentMap = response.data.map
-          this.mapSelections = [] // Will be loaded by BodyMapCanvas component
+          map = response.data.map
         } else if (response.data && Array.isArray(response.data) && response.data.length > 0) {
-          this.currentMap = response.data[0].map
-          this.mapSelections = []
+          map = response.data[0].map
+        }
+        
+        if (map && map._id) {
+          this.currentMap = map
+          
+          // Load regions for this map from backend
+          try {
+            const regionsResponse = await api.getRegionsForMap(this.userId, map._id)
+            let regions = []
+            if (Array.isArray(regionsResponse.data)) {
+              regions = regionsResponse.data.map(r => ({
+                name: r.name,
+                score: r.score
+              }))
+            }
+            
+            // Set map selections and regions
+            this.mapSelections = regions.map(r => r.name)
+            this.currentSelections = [...this.mapSelections]
+            
+            // Update currentMap with regions
+            this.currentMap.regions = regions
+            this.todaysMap = { ...this.currentMap }
+            
+            console.log('✅ Loaded current map with regions:', regions.length)
+          } catch (regionError) {
+            console.error('Error loading regions for current map:', regionError)
+            // Continue with empty regions if region load fails
+            this.mapSelections = []
+            this.currentSelections = []
+            this.currentMap.regions = []
+            this.todaysMap = { ...this.currentMap }
+          }
         } else {
           this.currentMap = null
           this.mapSelections = []
+          this.currentSelections = []
         }
       } catch (err) {
         console.error('Error loading current map:', err)
