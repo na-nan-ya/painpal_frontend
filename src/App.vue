@@ -720,8 +720,8 @@ export default {
           currentMonth: date.getMonth() === month,
           isToday,
           isPast,
-          hasData: !!mapForDate && mapForDate.regions && mapForDate.regions.length > 0,
-          regionCount: mapForDate?.regions?.length || 0,
+          hasData: !!mapForDate && mapForDate.regions && Array.isArray(mapForDate.regions) && mapForDate.regions.length > 0,
+          regionCount: (mapForDate?.regions && Array.isArray(mapForDate.regions)) ? mapForDate.regions.length : 0,
           mapData: mapForDate,
           isSelected: this.selectedMapInfo && 
                      this.selectedMapInfo.creationDate.split('T')[0] === dateStr
