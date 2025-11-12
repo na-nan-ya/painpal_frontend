@@ -374,49 +374,6 @@ export default {
       this.mapSelections = []
     },
     
-    isPastDate(creationDate) {
-      if (!creationDate) return false
-      const mapDate = new Date(creationDate)
-      const today = new Date()
-      today.setHours(0, 0, 0, 0)
-      mapDate.setHours(0, 0, 0, 0)
-      return mapDate < today
-    },
-    
-    generateFakeRegionsForMap(mapId) {
-      // Generate 2-5 random regions with scores for demo purposes
-      const allRegions = [
-        'head', 'neck', 'left-shoulder', 'right-shoulder', 'left-upper-arm', 'right-upper-arm',
-        'left-lower-arm', 'right-lower-arm', 'left-hand', 'right-hand', 'chest', 'abdomen',
-        'left-upper-leg', 'right-upper-leg', 'left-lower-leg', 'right-lower-leg',
-        'left-foot', 'right-foot', 'upper-back', 'lower-back'
-      ]
-      
-      const numRegions = Math.floor(Math.random() * 4) + 2 // 2-5 regions
-      const selectedRegions = []
-      const usedIndices = new Set()
-      
-      for (let i = 0; i < numRegions; i++) {
-        let index
-        do {
-          index = Math.floor(Math.random() * allRegions.length)
-        } while (usedIndices.has(index))
-        usedIndices.add(index)
-        
-        const regionName = allRegions[index]
-        const score = Math.floor(Math.random() * 8) + 3 // Score between 3-10
-        const fakeId = `fake-${mapId}-${regionName}-${Date.now()}-${i}`
-        
-        selectedRegions.push({
-          _id: fakeId,
-          name: regionName,
-          score: score
-        })
-      }
-      
-      return selectedRegions
-    },
-    
     
     formatRegionName(regionId) {
       return regionId
@@ -461,12 +418,6 @@ export default {
     async loadHistoricalMapFromProp(map) {
       console.log('🔄 BodyMapDemo: Loading historical map:', map._id, 'with', map.regions?.length || 0, 'regions')
       
-      // Don't load placeholder maps - they're not real maps
-      if (map._id && (map._id.startsWith('date-') || map._id.startsWith('search-'))) {
-        console.warn('⚠️ BodyMapDemo: Cannot load placeholder map:', map._id)
-        return
-      }
-      
       // Save current selections if we're not already viewing a historical map
       if (!this.isViewingHistoricalMap && this.todaysMap) {
         console.log('💾 BodyMapDemo: Saving current selections before loading historical map')
@@ -501,29 +452,12 @@ export default {
               score: r.score
             }))
           }
-          
-          // If no regions found and it's a past date, add fake regions for demo
-          if (regions.length === 0 && this.isPastDate(map.creationDate)) {
-            regions = this.generateFakeRegionsForMap(map._id)
-            console.log(`📅 BodyMapDemo: Added ${regions.length} fake regions to past map ${map._id}`)
-          }
-          
           mapWithRegions.regions = regions
           console.log('✅ Loaded regions for historical map:', regions.length)
         } catch (error) {
           console.error('Error loading regions for historical map:', error)
-          let regions = map.regions || []
-          // If it's a past date, add fake regions even on error
-          if (regions.length === 0 && this.isPastDate(map.creationDate)) {
-            regions = this.generateFakeRegionsForMap(map._id)
-            console.log(`📅 BodyMapDemo: Added ${regions.length} fake regions to past map ${map._id} (after error)`)
-          }
-          mapWithRegions.regions = regions
+          mapWithRegions.regions = map.regions || []
         }
-      } else if (map.regions && map.regions.length === 0 && this.isPastDate(map.creationDate)) {
-        // If map already loaded but has no regions and it's a past date, add fake ones
-        mapWithRegions.regions = this.generateFakeRegionsForMap(map._id)
-        console.log(`📅 BodyMapDemo: Added ${mapWithRegions.regions.length} fake regions to past map ${map._id}`)
       }
       
       // Clear current state first

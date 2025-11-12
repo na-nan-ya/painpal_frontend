@@ -283,14 +283,6 @@ export default {
       console.log('💆 BodyMapCanvas: toggleRegion called for:', regionName)
       console.log('💆 BodyMapCanvas: Current selectedRegions:', this.selectedRegions)
       
-      // Check if this is a fake region (view-only for past dates)
-      const regionId = this.regionIds[regionName]
-      if (regionId && regionId.startsWith('fake-')) {
-        console.warn('⚠️ BodyMapCanvas: Cannot toggle fake/demo regions - view only')
-        this.errorMessage = 'This is demo data for a past date. You can only view, not edit.'
-        return
-      }
-      
       const index = this.selectedRegions.indexOf(regionName)
       console.log('💆 BodyMapCanvas: Region index in selectedRegions:', index)
       
@@ -352,16 +344,6 @@ export default {
         console.error('❌ BodyMapCanvas: Cannot add region to placeholder map:', this.mapId)
         this.errorMessage = 'Cannot add regions to this date. Please select today\'s map or a saved map.'
         return
-      }
-      
-      // Check if this is a historical map with fake regions (view-only)
-      if (this.mapId && this.savedRegions && this.savedRegions.length > 0) {
-        const hasFakeRegions = this.savedRegions.some(r => r._id && r._id.startsWith('fake-'))
-        if (hasFakeRegions) {
-          console.warn('⚠️ BodyMapCanvas: This is a historical map with demo data. Regions are view-only.')
-          this.errorMessage = 'This is a past date with demo data. You can only view, not edit.'
-          return
-        }
       }
       
       // Check if we're in mock mode (mapId starts with 'map-')
@@ -550,13 +532,6 @@ export default {
         } else {
           this.errorMessage = 'Region not found. Please select the region again.'
         }
-        return
-      }
-      
-      // Check if this is a fake region (view-only)
-      if (regionId.startsWith('fake-')) {
-        console.warn('⚠️ BodyMapCanvas: Cannot edit fake/demo regions')
-        this.errorMessage = 'This is demo data for a past date. You can only view, not edit.'
         return
       }
       
@@ -864,11 +839,9 @@ export default {
             }
             
             // Load region ID if available (from _id field in API response)
-            // Always update regionIds, even if it already exists (for fake regions)
-            if (region._id) {
+            if (region._id && !this.regionIds[region.name]) {
               this.regionIds[region.name] = region._id
-              console.log('💾 BodyMapCanvas: Loaded region ID', region._id, 'for region', region.name, 
-                region._id.startsWith('fake-') ? '(fake/demo)' : '(real)')
+              console.log('💾 BodyMapCanvas: Loaded region ID', region._id, 'for region', region.name)
             }
           }
         })
