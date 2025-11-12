@@ -341,6 +341,7 @@ export default {
               let regions = []
               if (Array.isArray(regionsResponse.data)) {
                 regions = regionsResponse.data.map(r => ({
+                  _id: r._id, // Include region ID so scores can be saved
                   name: r.name,
                   score: r.score
                 }))

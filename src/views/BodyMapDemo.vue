@@ -240,6 +240,7 @@ export default {
             let regions = []
             if (Array.isArray(regionsResponse.data)) {
               regions = regionsResponse.data.map(r => ({
+                _id: r._id, // Include region ID so scores can be saved
                 name: r.name,
                 score: r.score
               }))
@@ -325,15 +326,30 @@ export default {
             const regionWithScore = regionsWithScores.find(r => r.name === regionName)
             const existingRegion = this.todaysMap.regions?.find(r => r.name === regionName)
 
+            // Preserve region ID if it exists
+            const regionId = existingRegion?._id || regionWithScore?._id || null
+
             if (regionWithScore && regionWithScore.score !== null && regionWithScore.score !== undefined) {
               console.log('💾 BodyMapDemo: Using new score for', regionName, ':', regionWithScore.score)
-              updatedRegions.push({ name: regionName, score: regionWithScore.score })
+              updatedRegions.push({ 
+                _id: regionId,
+                name: regionName, 
+                score: regionWithScore.score 
+              })
             } else if (existingRegion && existingRegion.score !== null && existingRegion.score !== undefined) {
               console.log('💾 BodyMapDemo: Preserving existing score for', regionName, ':', existingRegion.score)
-              updatedRegions.push({ name: regionName, score: existingRegion.score })
+              updatedRegions.push({ 
+                _id: regionId || existingRegion._id,
+                name: regionName, 
+                score: existingRegion.score 
+              })
             } else {
               console.log('💾 BodyMapDemo: No score yet for', regionName, '- keeping null')
-              updatedRegions.push({ name: regionName, score: null }) // Keep null until user scores
+              updatedRegions.push({ 
+                _id: regionId,
+                name: regionName, 
+                score: null 
+              }) // Keep null until user scores
             }
           })
           this.todaysMap.regions = updatedRegions
@@ -409,11 +425,12 @@ export default {
         console.log('💾 BodyMapDemo: Saving current selections before loading historical map')
         // Make sure today's map is up to date with current selections
         if (this.currentSelections.length > 0) {
-          // Preserve existing scores, don't overwrite with default values
+          // Preserve existing scores and IDs, don't overwrite with default values
           this.todaysMap.regions = this.currentSelections.map(regionName => {
-            // Find existing region to preserve its score
+            // Find existing region to preserve its score and ID
             const existingRegion = this.todaysMap.regions?.find(r => r.name === regionName)
             return {
+              _id: existingRegion?._id || null, // Preserve region ID
               name: regionName,
               score: existingRegion?.score || null // Preserve existing score or null if none
             }
@@ -432,6 +449,7 @@ export default {
           let regions = []
           if (Array.isArray(regionsResponse.data)) {
             regions = regionsResponse.data.map(r => ({
+              _id: r._id, // Include region ID so scores can be saved
               name: r.name,
               score: r.score
             }))
@@ -482,32 +500,14 @@ export default {
     async returnToCurrentMap() {
       console.log('🔙 BodyMapDemo: Returning to current map')
       
+      // Mark as no longer viewing historical map
+      this.isViewingHistoricalMap = false
+      
       // Always reload current map from backend to get latest data with all regions and scores
       if (!this.mockMode && this.userId) {
         try {
-          // Clear current state first
-          this.currentMap = null
-          this.mapSelections = []
-          this.currentSelections = []
-          this.isViewingHistoricalMap = false
-          
           // Reload current map with all regions
           await this.loadCurrentMap()
-          
-          // After loading, ensure todaysMap is set
-          if (this.currentMap) {
-            this.todaysMap = { ...this.currentMap }
-            this.mapSelections = this.currentMap.regions ? this.currentMap.regions.map(r => r.name) : []
-            this.currentSelections = [...this.mapSelections]
-            
-            console.log('🔙 BodyMapDemo: Restored current map with selections:', this.currentSelections)
-            console.log('🔙 BodyMapDemo: Current map regions with scores:', this.currentMap.regions)
-            
-            // Force update to ensure BodyMapCanvas sees the changes
-            this.$nextTick(() => {
-              this.$forceUpdate()
-            })
-          }
         } catch (error) {
           console.error('Error reloading current map:', error)
         }
@@ -516,7 +516,6 @@ export default {
         this.currentMap = { ...this.todaysMap }
         this.mapSelections = this.todaysMap.regions ? this.todaysMap.regions.map(r => r.name) : []
         this.currentSelections = [...this.mapSelections]
-        this.isViewingHistoricalMap = false
         
         this.$nextTick(() => {
           this.$forceUpdate()

@@ -326,6 +326,7 @@ export default {
       
       try {
         this.isLoading = true
+        this.errorMessage = null
         const response = await api.addRegion(this.userId, this.mapId, regionName)
         // Store the region ID returned from the API
         if (response.data && response.data.region) {
@@ -333,10 +334,12 @@ export default {
           console.log('✅ BodyMapCanvas: Region added successfully, ID:', response.data.region)
         } else {
           console.error('❌ BodyMapCanvas: addRegion response missing region ID:', response.data)
+          throw new Error('Region ID not returned from API')
         }
       } catch (error) {
-        console.error('Error adding region:', error)
-        this.errorMessage = 'Failed to add region. Please try again.'
+        console.error('❌ BodyMapCanvas: Error adding region:', error)
+        console.error('❌ BodyMapCanvas: Error response:', error.response?.data)
+        this.errorMessage = error.response?.data?.error || 'Failed to add region. Please try again.'
         throw error // Re-throw so caller knows it failed
       } finally {
         this.isLoading = false
@@ -488,50 +491,9 @@ export default {
       console.log('💾 BodyMapCanvas: regionId for', this.currentScoringRegion, ':', regionId)
       
       if (!regionId) {
-        console.warn('No region ID found, attempting to add region first...')
-        // Try to add the region first if it doesn't exist
-        try {
-          await this.addRegionToAPI(this.currentScoringRegion)
-          const newRegionId = this.regionIds[this.currentScoringRegion]
-          if (newRegionId) {
-            // Now save the score with the new region ID
-            try {
-              this.isLoading = true
-              await api.scoreRegion(this.userId, newRegionId, this.tempScore)
-              this.regionScores[this.currentScoringRegion] = this.tempScore
-              console.log('✅ BodyMapCanvas: Region added and score saved successfully')
-              
-              this.closeDialog()
-              this.$nextTick(() => {
-                this.emitSelectionChange()
-              })
-            } catch (scoreError) {
-              console.error('Error saving score after adding region:', scoreError)
-              this.errorMessage = 'Failed to save score. Please try again.'
-            } finally {
-              this.isLoading = false
-            }
-            return
-          }
-        } catch (addError) {
-          console.error('Error adding region:', addError)
-        }
-        
-        // If we still don't have a regionId, save locally but show warning
-        console.warn('⚠️ No region ID available, saving score locally only')
-        this.regionScores[this.currentScoringRegion] = this.tempScore
-        console.log('💾 BodyMapCanvas: Score saved locally. regionScores after:', this.regionScores)
-        
-        // Close dialog first, then emit change
-        this.closeDialog()
-        
-        // Use $nextTick to ensure the score is saved before emitting
-        this.$nextTick(() => {
-          console.log('💾 BodyMapCanvas: About to emit selection change with locally saved score')
-          this.emitSelectionChange() // Notify parent of score update
-        })
-        
-        console.log('==== SAVE SCORE END (no regionId) ====\n');
+        console.error('❌ BodyMapCanvas: No region ID found for', this.currentScoringRegion)
+        console.error('❌ BodyMapCanvas: Available regionIds:', Object.keys(this.regionIds))
+        this.errorMessage = 'Region not found. Please select the region again.'
         return
       }
       
@@ -556,12 +518,14 @@ export default {
       
       try {
         this.isLoading = true
+        this.errorMessage = null
         console.log('🌐 BodyMapCanvas: Making API call to save score...')
         console.log('🌐 BodyMapCanvas: userId:', this.userId, 'regionId:', regionId, 'score:', this.tempScore)
-        const response = await api.scoreRegion(this.userId, regionId, this.tempScore)
-        console.log('🌐 BodyMapCanvas: API response:', response)
+        
+        await api.scoreRegion(this.userId, regionId, this.tempScore)
+        
         this.regionScores[this.currentScoringRegion] = this.tempScore
-        console.log('🌐 BodyMapCanvas: API call successful. regionScores after:', this.regionScores)
+        console.log('✅ BodyMapCanvas: API call successful. regionScores after:', this.regionScores)
         
         // Close dialog first, then emit change
         this.closeDialog()
@@ -574,8 +538,9 @@ export default {
         
         console.log('==== SAVE SCORE END (API success) ====\n');
       } catch (error) {
-        console.error('Error scoring region:', error)
-        console.error('Error details:', error.response?.data || error.message)
+        console.error('❌ BodyMapCanvas: Error scoring region:', error)
+        console.error('❌ BodyMapCanvas: Error response:', error.response?.data)
+        console.error('❌ BodyMapCanvas: Error message:', error.message)
         this.errorMessage = error.response?.data?.error || 'Failed to save score. Please try again.'
         console.log('==== SAVE SCORE END (API error) ====\n');
       } finally {
@@ -705,10 +670,6 @@ export default {
         // Optionally clear selections on background click
       }
     },
-    emitSelectionChange() {
-      this.$emit('selection-change', [...this.selectedRegions])
-    },
-    
     // Zoom controls
     zoomIn() {
       this.zoomLevel = Math.min(this.zoomLevel + 0.2, this.maxZoom)
@@ -771,6 +732,7 @@ export default {
     emitSelectionChange() {
       // Emit both selections and their scores to parent component
       const regionsWithScores = this.selectedRegions.map(regionName => ({
+        _id: this.regionIds[regionName] || null, // Include region ID so parent can track it
         name: regionName,
         score: this.regionScores[regionName] || null
       }))
@@ -778,7 +740,8 @@ export default {
       console.log('🔄 BodyMapCanvas: Emitting selection change:', {
         selections: this.selectedRegions,
         regionsWithScores: regionsWithScores,
-        allRegionScores: this.regionScores
+        allRegionScores: this.regionScores,
+        allRegionIds: this.regionIds
       })
       
       // Add safeguard to prevent excessive emissions
@@ -826,49 +789,28 @@ export default {
     
     savedRegions(newVal) {
       console.log('💾 BodyMapCanvas: savedRegions changed to:', newVal)
-      console.log('💾 BodyMapCanvas: savedRegions array details:')
-      if (newVal && Array.isArray(newVal)) {
-        newVal.forEach((region, index) => {
-          console.log(`  [${index}]:`, region, 'name:', region?.name, 'score:', region?.score)
-        })
-      } else {
-        console.log('  savedRegions is not a valid array:', typeof newVal)
-      }
       
-      // Load scores from saved regions (for historical maps that already have scores)
-      // IMPORTANT: Don't emit changes here to prevent recursive loops
-      if (newVal && newVal.length > 0) {
-        let hasNewScores = false
-        newVal.forEach((region, index) => {
-          console.log(`💾 BodyMapCanvas: Processing region ${index}:`, region)
-          console.log(`💾 BodyMapCanvas: Region name: ${region?.name}, score: ${region?.score}, type: ${typeof region?.score}`)
-          
-          if (region && region.name && region.score !== undefined && region.score !== null) {
-            console.log(`💾 BodyMapCanvas: Current regionScores[${region.name}]:`, this.regionScores[region.name])
-            if (this.regionScores[region.name] !== region.score) {
-              console.log('💾 BodyMapCanvas: Loading saved score', region.score, 'for region', region.name)
+      // Load scores and region IDs from saved regions
+      if (newVal && Array.isArray(newVal) && newVal.length > 0) {
+        newVal.forEach((region) => {
+          if (region && region.name) {
+            // Load score if available
+            if (region.score !== undefined && region.score !== null) {
               this.regionScores[region.name] = region.score
-              hasNewScores = true
-            } else {
-              console.log('💾 BodyMapCanvas: Score already loaded for', region.name)
+              console.log('💾 BodyMapCanvas: Loaded score', region.score, 'for region', region.name)
             }
-          } else {
-            console.log(`💾 BodyMapCanvas: Skipping region ${index} - invalid data or no score`)
+            
+            // Load region ID if available (from _id field in API response)
+            if (region._id && !this.regionIds[region.name]) {
+              this.regionIds[region.name] = region._id
+              console.log('💾 BodyMapCanvas: Loaded region ID', region._id, 'for region', region.name)
+            }
           }
         })
-        
-        // Only emit if we actually loaded new scores (prevents recursive loops)
-        if (hasNewScores) {
-          console.log('💾 BodyMapCanvas: New scores loaded - will emit on next user interaction')
-          // Don't emit here to prevent recursive loops - parent already has the data
-        } else {
-          console.log('💾 BodyMapCanvas: No new scores to load')
-        }
-      } else {
-        console.log('💾 BodyMapCanvas: No savedRegions to process')
       }
       
       console.log('💾 BodyMapCanvas: Final regionScores:', this.regionScores)
+      console.log('💾 BodyMapCanvas: Final regionIds:', this.regionIds)
     },
     mapId(newMapId, oldMapId) {
       console.log('mapId changed from', oldMapId, 'to', newMapId)
